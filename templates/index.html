@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cartera en Mora</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -332,6 +333,30 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
 
 /* MONTO */
 .monto { font-variant-numeric: tabular-nums; }
+
+/* GRAFICOS */
+.graficos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 800px) { .graficos-grid { grid-template-columns: 1fr; } }
+.grafico-card {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 1.3rem 1.5rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+.grafico-card h3 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--slate);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 1rem;
+}
+.grafico-card canvas { max-height: 280px; }
 </style>
 </head>
 <body>
@@ -349,6 +374,7 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
 <div class="tabs">
   <div class="tab active" onclick="showPanel('clientes', this)">📋 Clientes</div>
   <div class="tab" onclick="showPanel('dashboard', this); loadDashboard()">📊 Resumen</div>
+  <div class="tab" onclick="showPanel('graficos', this); loadGraficos()">📈 Gráficos</div>
 </div>
 
 <div class="main">
@@ -400,6 +426,24 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
   <!-- PANEL DASHBOARD -->
   <div class="panel" id="panel-dashboard">
     <div id="dash-content">Cargando...</div>
+  </div>
+
+  <!-- PANEL GRAFICOS -->
+  <div class="panel" id="panel-graficos">
+    <div class="graficos-grid">
+      <div class="grafico-card">
+        <h3>Monto Original por Estado (ARS)</h3>
+        <canvas id="chart-barras"></canvas>
+      </div>
+      <div class="grafico-card">
+        <h3>Perspectiva de Cobro</h3>
+        <canvas id="chart-torta"></canvas>
+      </div>
+    </div>
+    <div class="grafico-card" style="margin-bottom:1.25rem">
+      <h3>Cantidad de Clientes por Estado</h3>
+      <canvas id="chart-cantidad" style="max-height:200px"></canvas>
+    </div>
   </div>
 
 </div>
@@ -722,6 +766,125 @@ function toast(msg, type = '') {
   el.textContent = msg;
   el.className = `toast show ${type}`;
   setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ---- GRAFICOS ----
+let chartBarras = null, chartTorta = null, chartCantidad = null;
+
+async function loadGraficos() {
+  const res = await fetch('/api/resumen');
+  const r = await res.json();
+
+  const estados = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'MEDIACION', 'COBRADO/CERRADO'];
+  const coloresEstado = ['#ca8a04','#dc2626','#ea580c','#7c3aed','#0891b2','#16a34a'];
+
+  const montos = estados.map(e => Math.round((r[e]?.monto_original || 0) / 1000000));
+  const cantidades = estados.map(e => r[e]?.cantidad || 0);
+
+  // Barras — montos por estado
+  if (chartBarras) chartBarras.destroy();
+  chartBarras = new Chart(document.getElementById('chart-barras'), {
+    type: 'bar',
+    data: {
+      labels: estados,
+      datasets: [{
+        label: 'Monto (millones ARS)',
+        data: montos,
+        backgroundColor: coloresEstado,
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` $ ${ctx.parsed.y.toLocaleString('es-AR')} M`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { callback: v => `$${v}M` },
+          grid: { color: '#f1f5f9' }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  // Torta — perspectiva de cobro
+  const perspectivas = ['Alta', 'Media', 'Baja', 'Incobrable'];
+  const coloresPersp = ['#16a34a','#ca8a04','#ea580c','#dc2626'];
+  const perspCount = { Alta: 0, Media: 0, Baja: 0, Incobrable: 0 };
+  clientes.forEach(c => { if (perspCount[c.perspectiva] !== undefined) perspCount[c.perspectiva]++; });
+  const perspData = perspectivas.map(p => perspCount[p]);
+
+  if (chartTorta) chartTorta.destroy();
+  chartTorta = new Chart(document.getElementById('chart-torta'), {
+    type: 'doughnut',
+    data: {
+      labels: perspectivas,
+      datasets: [{
+        data: perspData,
+        backgroundColor: coloresPersp,
+        borderWidth: 2,
+        borderColor: '#fff',
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { padding: 16, font: { size: 12 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed} clientes`
+          }
+        }
+      }
+    }
+  });
+
+  // Barras horizontales — cantidad por estado
+  if (chartCantidad) chartCantidad.destroy();
+  chartCantidad = new Chart(document.getElementById('chart-cantidad'), {
+    type: 'bar',
+    data: {
+      labels: estados,
+      datasets: [{
+        label: 'Clientes',
+        data: cantidades,
+        backgroundColor: coloresEstado,
+        borderRadius: 5,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: ctx => ` ${ctx.parsed.x} cliente${ctx.parsed.x !== 1 ? 's' : ''}` }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { stepSize: 1 },
+          grid: { color: '#f1f5f9' }
+        },
+        y: { grid: { display: false } }
+      }
+    }
+  });
 }
 
 // ---- INIT ----
