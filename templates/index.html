@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cartera en Mora</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy: #1a2e4a;
+  --navy-mid: #243d60;
+  --navy-light: #3b5a87;
+  --slate: #64748b;
+  --muted: #94a3b8;
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --green: #16a34a;
+  --yellow: #ca8a04;
+  --red: #dc2626;
+  --orange: #ea580c;
+  --purple: #7c3aed;
+  --cyan: #0891b2;
+}
+
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 0.875rem; }
+
+/* HEADER */
+.header {
+  background: var(--navy);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.header-brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; font-size: 1rem; }
+.header-brand span { font-size: 1.4rem; }
+.header-actions { display: flex; gap: 0.6rem; align-items: center; }
+.btn-header {
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  background: transparent;
+  color: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.btn-header:hover { background: rgba(255,255,255,0.15); }
+.btn-header.primary { background: #fff; color: var(--navy); font-weight: 600; border-color: #fff; }
+.btn-header.primary:hover { background: #e2e8f0; }
+
+/* TABS */
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); background: var(--surface); padding: 0 1.5rem; }
+.tab { padding: 0.75rem 1.2rem; cursor: pointer; font-weight: 600; font-size: 0.82rem; color: var(--slate); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+.tab.active { color: var(--navy); border-bottom-color: var(--navy); }
+.tab:hover { color: var(--navy-mid); }
+
+/* MAIN */
+.main { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+
+/* PANEL */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* FILTROS */
+.filtros {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+.filtros input, .filtros select {
+  padding: 0.45rem 0.75rem;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  font-size: 0.82rem;
+  background: var(--surface);
+  outline: none;
+  color: var(--text);
+  transition: border-color 0.15s;
+}
+.filtros input:focus, .filtros select:focus { border-color: var(--navy); }
+.filtros input { width: 220px; }
+.btn-add {
+  margin-left: auto;
+  padding: 0.45rem 1rem;
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: background 0.15s;
+}
+.btn-add:hover { background: var(--navy-mid); }
+
+/* TABLA */
+.table-wrap { background: var(--surface); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+table { width: 100%; border-collapse: collapse; }
+thead { background: var(--navy); color: #fff; }
+th { padding: 0.65rem 0.75rem; text-align: left; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+tbody tr:hover { background: #f8fafc; }
+tbody tr:last-child { border-bottom: none; }
+td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
+
+/* BADGE ESTADO */
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.badge-PREJUDICIAL { background: #fef9c3; color: #854d0e; }
+.badge-JUICIO { background: #fee2e2; color: #991b1b; }
+.badge-SENTENCIA { background: #fde8d0; color: #9a3412; }
+.badge-EJECUCION { background: #ede9fe; color: #5b21b6; }
+.badge-COBRADO { background: #dcfce7; color: #14532d; }
+.badge-MEDIACION { background: #e0f2fe; color: #0c4a6e; }
+
+.badge-perspectiva-Alta { background: #dcfce7; color: #15803d; }
+.badge-perspectiva-Media { background: #fef3c7; color: #92400e; }
+.badge-perspectiva-Baja { background: #fee2e2; color: #b91c1c; }
+.badge-perspectiva-Incobrable { background: #f1f5f9; color: #475569; }
+
+/* EDICION INLINE */
+.editable {
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  border-radius: 4px;
+  min-width: 60px;
+  display: inline-block;
+  transition: background 0.1s;
+}
+.editable:hover { background: #e8f0fe; }
+.inline-input, .inline-select {
+  padding: 0.25rem 0.4rem;
+  border: 1.5px solid var(--navy);
+  border-radius: 4px;
+  font-size: 0.82rem;
+  outline: none;
+  background: #fff;
+  width: auto;
+}
+.inline-input { min-width: 120px; }
+
+/* ACCIONES FILA */
+.row-actions { display: flex; gap: 0.35rem; align-items: center; }
+.btn-icon {
+  width: 28px; height: 28px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+.btn-icon.expand { background: #e0f2fe; color: #0369a1; }
+.btn-icon.expand:hover { background: #bae6fd; }
+.btn-icon.delete { background: #fee2e2; color: #dc2626; }
+.btn-icon.delete:hover { background: #fca5a5; }
+
+/* HISTORIAL EXPANDIBLE */
+.historial-row { display: none; background: #f8fafc; }
+.historial-row.open { display: table-row; }
+.historial-cell { padding: 0.75rem 1rem 1rem 3rem; }
+.historial-header { font-weight: 700; color: var(--navy); margin-bottom: 0.6rem; font-size: 0.83rem; display: flex; align-items: center; justify-content: space-between; }
+.historial-form { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+.historial-form input, .historial-form select {
+  padding: 0.4rem 0.65rem;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  outline: none;
+}
+.historial-form input:focus, .historial-form select:focus { border-color: var(--navy); }
+.historial-form input[name="nota"] { flex: 1; min-width: 180px; }
+.btn-hist {
+  padding: 0.4rem 0.8rem;
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-hist:hover { background: var(--navy-mid); }
+.hist-list { display: flex; flex-direction: column; gap: 0.4rem; max-height: 200px; overflow-y: auto; }
+.hist-item {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+.hist-fecha { color: var(--slate); font-size: 0.75rem; white-space: nowrap; }
+.hist-tipo { font-weight: 600; color: var(--navy-light); }
+.hist-nota { color: var(--text); flex: 1; }
+.hist-empty { color: var(--muted); font-size: 0.8rem; font-style: italic; }
+
+/* DASHBOARD */
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.dash-card {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 1.2rem 1.3rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  border-left: 4px solid var(--navy);
+}
+.dash-card.juicio { border-left-color: #dc2626; }
+.dash-card.sentencia { border-left-color: #ea580c; }
+.dash-card.ejecucion { border-left-color: #7c3aed; }
+.dash-card.cobrado { border-left-color: #16a34a; }
+.dash-card.mediacion { border-left-color: #0891b2; }
+.dash-card-label { font-size: 0.75rem; font-weight: 600; color: var(--slate); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.3rem; }
+.dash-card-count { font-size: 2rem; font-weight: 800; color: var(--navy); line-height: 1; }
+.dash-card-monto { font-size: 0.78rem; color: var(--slate); margin-top: 0.25rem; }
+
+.dash-total {
+  background: var(--navy);
+  color: #fff;
+  border-radius: 10px;
+  padding: 1.2rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  box-shadow: 0 2px 10px rgba(26,46,74,0.25);
+  margin-bottom: 1.5rem;
+}
+.dash-total-item { text-align: center; }
+.dash-total-label { font-size: 0.72rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+.dash-total-val { font-size: 1.4rem; font-weight: 800; }
+
+/* PERSPECTIVA PIE */
+.persp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
+.persp-card {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.persp-num { font-size: 1.8rem; font-weight: 800; }
+.persp-lbl { font-size: 0.75rem; color: var(--slate); font-weight: 600; margin-top: 0.2rem; }
+.persp-alta .persp-num { color: #16a34a; }
+.persp-media .persp-num { color: #ca8a04; }
+.persp-baja .persp-num { color: #ea580c; }
+.persp-incobrable .persp-num { color: #dc2626; }
+
+/* MODAL NUEVO CLIENTE */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 1.8rem;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal h2 { font-size: 1.1rem; color: var(--navy); margin-bottom: 1.2rem; }
+.form-row { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.85rem; }
+.form-row label { font-size: 0.78rem; font-weight: 600; color: var(--slate); }
+.form-row input, .form-row select {
+  padding: 0.55rem 0.75rem;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  font-size: 0.88rem;
+  outline: none;
+}
+.form-row input:focus, .form-row select:focus { border-color: var(--navy); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.2rem; }
+.btn-cancel { padding: 0.55rem 1rem; border: 1.5px solid var(--border); border-radius: 7px; background: #fff; cursor: pointer; font-size: 0.88rem; }
+.btn-save { padding: 0.55rem 1.2rem; background: var(--navy); color: #fff; border: none; border-radius: 7px; font-weight: 600; cursor: pointer; font-size: 0.88rem; }
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: #1e293b;
+  color: #fff;
+  padding: 0.65rem 1.1rem;
+  border-radius: 8px;
+  font-size: 0.83rem;
+  z-index: 300;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all 0.3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: #15803d; }
+.toast.error { background: #dc2626; }
+
+/* MONTO */
+.monto { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <span>⚖️</span> Cartera en Mora
+  </div>
+  <div class="header-actions">
+    <a href="/exportar/pdf" class="btn-header">📄 Exportar PDF</a>
+    <a href="/logout" class="btn-header">Salir</a>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showPanel('clientes', this)">📋 Clientes</div>
+  <div class="tab" onclick="showPanel('dashboard', this); loadDashboard()">📊 Resumen</div>
+</div>
+
+<div class="main">
+
+  <!-- PANEL CLIENTES -->
+  <div class="panel active" id="panel-clientes">
+    <div class="filtros">
+      <input type="text" id="buscar" placeholder="🔍 Buscar cliente..." oninput="filtrarTabla()">
+      <select id="filtro-estado" onchange="filtrarTabla()">
+        <option value="">Todos los estados</option>
+        <option>PREJUDICIAL</option>
+        <option>JUICIO</option>
+        <option>SENTENCIA</option>
+        <option>EJECUCION</option>
+        <option>MEDIACION</option>
+        <option>COBRADO/CERRADO</option>
+      </select>
+      <select id="filtro-perspectiva" onchange="filtrarTabla()">
+        <option value="">Todas las perspectivas</option>
+        <option>Alta</option>
+        <option>Media</option>
+        <option>Baja</option>
+        <option>Incobrable</option>
+      </select>
+      <button class="btn-add" onclick="abrirModal()">＋ Nuevo cliente</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="tabla-clientes">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Cliente / Razón Social</th>
+            <th>Monto Original</th>
+            <th>Intereses</th>
+            <th>Total Adeudado</th>
+            <th>Estado</th>
+            <th>Última Gestión</th>
+            <th>Perspectiva</th>
+            <th>Observaciones</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PANEL DASHBOARD -->
+  <div class="panel" id="panel-dashboard">
+    <div id="dash-content">Cargando...</div>
+  </div>
+
+</div>
+
+<!-- MODAL NUEVO CLIENTE -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2>Nuevo Cliente</h2>
+    <div class="form-row"><label>Razón Social *</label><input id="m-razon" placeholder="Nombre o razón social"></div>
+    <div class="form-row"><label>Monto Original (ARS)</label><input id="m-monto" type="number" placeholder="0"></div>
+    <div class="form-row"><label>Estado</label>
+      <select id="m-estado">
+        <option>PREJUDICIAL</option><option>JUICIO</option><option>SENTENCIA</option>
+        <option>EJECUCION</option><option>MEDIACION</option><option>COBRADO/CERRADO</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Perspectiva de Cobro</label>
+      <select id="m-perspectiva">
+        <option value="">— Sin definir —</option>
+        <option>Alta</option><option>Media</option><option>Baja</option><option>Incobrable</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Observaciones</label><input id="m-obs" placeholder="Notas iniciales"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-save" onclick="guardarNuevo()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const ESTADOS = ['PREJUDICIAL','JUICIO','SENTENCIA','EJECUCION','MEDIACION','COBRADO/CERRADO'];
+const PERSPECTIVAS = ['','Alta','Media','Baja','Incobrable'];
+const TIPOS_GESTION = ['Llamado telefónico','WhatsApp','Email','Carta documento','Visita','Reunión','Nota interna','Otro'];
+
+let clientes = [];
+let historialCache = {};
+
+function fmt(n) {
+  if (!n && n !== 0) return '—';
+  return '$ ' + Number(n).toLocaleString('es-AR');
+}
+
+function badgeEstado(estado) {
+  const key = estado === 'COBRADO/CERRADO' ? 'COBRADO' : estado;
+  return `<span class="badge badge-${key}">${estado}</span>`;
+}
+
+function badgePersp(p) {
+  if (!p) return '<span class="muted">—</span>';
+  return `<span class="badge badge-perspectiva-${p}">${p}</span>`;
+}
+
+// ---- CARGA ----
+async function cargarClientes() {
+  const res = await fetch('/api/clientes');
+  clientes = await res.json();
+  renderTabla(clientes);
+}
+
+function renderTabla(lista) {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  lista.forEach((c, i) => {
+    const tr = document.createElement('tr');
+    tr.dataset.id = c.id;
+    const mo = (c.monto_original || 0);
+    const int_ = (c.intereses || 0);
+    const total = mo + int_;
+    tr.innerHTML = `
+      <td>${i + 1}</td>
+      <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'razon_social', 'text')">${c.razon_social || ''}</span></td>
+      <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'monto_original', 'number')">${fmt(mo)}</span></td>
+      <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'intereses', 'number')">${fmt(int_)}</span></td>
+      <td class="monto">${fmt(total)}</td>
+      <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'estado', ESTADOS)">${badgeEstado(c.estado)}</span></td>
+      <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'fecha_gestion', 'text')">${c.fecha_gestion || '—'}</span></td>
+      <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'perspectiva', PERSPECTIVAS)">${badgePersp(c.perspectiva)}</span></td>
+      <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'observaciones', 'text')">${c.observaciones || '—'}</span></td>
+      <td>
+        <div class="row-actions">
+          <button class="btn-icon expand" onclick="toggleHistorial(${c.id})" title="Historial">📝</button>
+          <button class="btn-icon delete" onclick="eliminarCliente(${c.id})" title="Eliminar">🗑</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    // Fila historial
+    const trH = document.createElement('tr');
+    trH.classList.add('historial-row');
+    trH.id = `hist-row-${c.id}`;
+    trH.innerHTML = `
+      <td colspan="10" class="historial-cell">
+        <div class="historial-header">
+          <span>📋 Historial de gestiones — ${c.razon_social}</span>
+        </div>
+        <div class="historial-form">
+          <select name="tipo" id="tipo-${c.id}">
+            ${TIPOS_GESTION.map(t => `<option>${t}</option>`).join('')}
+          </select>
+          <input name="nota" id="nota-${c.id}" placeholder="Descripción de la gestión..." />
+          <button class="btn-hist" onclick="agregarGestion(${c.id})">Registrar</button>
+        </div>
+        <div class="hist-list" id="hist-list-${c.id}">
+          <span class="hist-empty">Cargando historial...</span>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(trH);
+  });
+}
+
+// ---- EDICION INLINE ----
+function editarCampo(el, id, campo, tipo) {
+  const val = clientes.find(c => c.id === id)?.[campo] || '';
+  const inp = document.createElement('input');
+  inp.type = tipo;
+  inp.value = (tipo === 'number') ? (val || 0) : (val === '—' ? '' : val);
+  inp.className = 'inline-input';
+  el.replaceWith(inp);
+  inp.focus();
+
+  const guardar = async () => {
+    const nuevo = tipo === 'number' ? parseFloat(inp.value) || 0 : inp.value;
+    await updateCliente(id, { [campo]: nuevo });
+  };
+  inp.addEventListener('blur', guardar);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') cargarClientes(); });
+}
+
+function editarSelect(el, id, campo, opciones) {
+  const val = clientes.find(c => c.id === id)?.[campo] || '';
+  const sel = document.createElement('select');
+  sel.className = 'inline-select';
+  opciones.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o; opt.textContent = o || '— Sin definir —';
+    if (o === val) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  el.replaceWith(sel);
+  sel.focus();
+
+  const guardar = async () => {
+    await updateCliente(id, { [campo]: sel.value });
+  };
+  sel.addEventListener('blur', guardar);
+  sel.addEventListener('change', guardar);
+}
+
+async function updateCliente(id, updates) {
+  const res = await fetch(`/api/clientes/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  });
+  const c = await res.json();
+  const idx = clientes.findIndex(x => x.id === id);
+  if (idx !== -1) clientes[idx] = c;
+  renderTabla(filtrarActual());
+  toast('Guardado ✓', 'success');
+}
+
+// ---- HISTORIAL ----
+async function toggleHistorial(id) {
+  const row = document.getElementById(`hist-row-${id}`);
+  if (row.classList.toggle('open')) {
+    await cargarHistorial(id);
+  }
+}
+
+async function cargarHistorial(id) {
+  const res = await fetch(`/api/historial/${id}`);
+  const hist = await res.json();
+  historialCache[id] = hist;
+  renderHistorial(id, hist);
+}
+
+function renderHistorial(id, hist) {
+  const container = document.getElementById(`hist-list-${id}`);
+  if (!hist.length) {
+    container.innerHTML = '<span class="hist-empty">Sin gestiones registradas aún.</span>';
+    return;
+  }
+  container.innerHTML = hist.map(h => `
+    <div class="hist-item">
+      <span class="hist-fecha">${h.fecha}</span>
+      <span class="hist-tipo">${h.tipo}</span>
+      <span class="hist-nota">${h.nota || '—'}</span>
+    </div>
+  `).join('');
+}
+
+async function agregarGestion(id) {
+  const tipo = document.getElementById(`tipo-${id}`).value;
+  const nota = document.getElementById(`nota-${id}`).value.trim();
+  if (!nota) { toast('Ingresá una descripción', 'error'); return; }
+  await fetch(`/api/historial/${id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tipo, nota })
+  });
+  document.getElementById(`nota-${id}`).value = '';
+  await cargarHistorial(id);
+  toast('Gestión registrada ✓', 'success');
+}
+
+// ---- ELIMINAR ----
+async function eliminarCliente(id) {
+  const c = clientes.find(x => x.id === id);
+  if (!confirm(`¿Eliminar a ${c?.razon_social}? Esta acción no se puede deshacer.`)) return;
+  await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
+  clientes = clientes.filter(x => x.id !== id);
+  renderTabla(filtrarActual());
+  toast('Cliente eliminado', '');
+}
+
+// ---- FILTROS ----
+function filtrarActual() {
+  const busq = document.getElementById('buscar').value.toLowerCase();
+  const est = document.getElementById('filtro-estado').value;
+  const persp = document.getElementById('filtro-perspectiva').value;
+  return clientes.filter(c => {
+    const matchBusq = !busq || c.razon_social?.toLowerCase().includes(busq);
+    const matchEst = !est || c.estado === est;
+    const matchPersp = !persp || c.perspectiva === persp;
+    return matchBusq && matchEst && matchPersp;
+  });
+}
+
+function filtrarTabla() {
+  renderTabla(filtrarActual());
+}
+
+// ---- MODAL NUEVO ----
+function abrirModal() { document.getElementById('modal-overlay').classList.add('open'); }
+function cerrarModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+async function guardarNuevo() {
+  const razon = document.getElementById('m-razon').value.trim();
+  if (!razon) { toast('Ingresá una razón social', 'error'); return; }
+  const nuevo = {
+    razon_social: razon,
+    monto_original: parseFloat(document.getElementById('m-monto').value) || 0,
+    intereses: 0,
+    estado: document.getElementById('m-estado').value,
+    perspectiva: document.getElementById('m-perspectiva').value,
+    observaciones: document.getElementById('m-obs').value,
+  };
+  const res = await fetch('/api/clientes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(nuevo)
+  });
+  const c = await res.json();
+  clientes.push(c);
+  renderTabla(filtrarActual());
+  cerrarModal();
+  ['m-razon','m-monto','m-obs'].forEach(id => document.getElementById(id).value = '');
+  toast('Cliente agregado ✓', 'success');
+}
+
+// ---- TABS ----
+function showPanel(name, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`panel-${name}`).classList.add('active');
+  el.classList.add('active');
+}
+
+// ---- DASHBOARD ----
+async function loadDashboard() {
+  const res = await fetch('/api/resumen');
+  const r = await res.json();
+  const totalClientes = clientes.length;
+  const totalMonto = clientes.reduce((s, c) => s + (c.monto_original || 0), 0);
+  const totalAdeudado = clientes.reduce((s, c) => s + (c.monto_original || 0) + (c.intereses || 0), 0);
+
+  const colors = { PREJUDICIAL: '', JUICIO: 'juicio', SENTENCIA: 'sentencia', EJECUCION: 'ejecucion', 'COBRADO/CERRADO': 'cobrado', MEDIACION: 'mediacion' };
+
+  const perspCount = { Alta: 0, Media: 0, Baja: 0, Incobrable: 0 };
+  clientes.forEach(c => { if (perspCount[c.perspectiva] !== undefined) perspCount[c.perspectiva]++; });
+
+  document.getElementById('dash-content').innerHTML = `
+    <div class="dash-total">
+      <div class="dash-total-item"><div class="dash-total-label">Total clientes</div><div class="dash-total-val">${totalClientes}</div></div>
+      <div class="dash-total-item"><div class="dash-total-label">Monto original total</div><div class="dash-total-val">${fmt(totalMonto)}</div></div>
+      <div class="dash-total-item"><div class="dash-total-label">Total adeudado</div><div class="dash-total-val">${fmt(totalAdeudado)}</div></div>
+    </div>
+
+    <h3 style="font-size:0.85rem;color:var(--slate);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem;">Por Estado Procesal</h3>
+    <div class="dash-grid">
+      ${Object.entries(r).map(([estado, d]) => `
+        <div class="dash-card ${colors[estado] || ''}">
+          <div class="dash-card-label">${estado}</div>
+          <div class="dash-card-count">${d.cantidad}</div>
+          <div class="dash-card-monto">${fmt(d.monto_original)}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <h3 style="font-size:0.85rem;color:var(--slate);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:1.25rem 0 0.75rem;">Perspectiva de Cobro</h3>
+    <div class="persp-grid">
+      ${Object.entries(perspCount).map(([p, n]) => `
+        <div class="persp-card persp-${p.toLowerCase()}">
+          <div class="persp-num">${n}</div>
+          <div class="persp-lbl">${p}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ---- TOAST ----
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast show ${type}`;
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ---- INIT ----
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) cerrarModal();
+});
+cargarClientes();
+</script>
+</body>
+</html>
