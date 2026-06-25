@@ -462,6 +462,10 @@ def exportar_pdf_cliente(cid):
 @app.route('/exportar/carta/<int:cid>')
 @login_required
 def exportar_carta(cid):
+    from docx import Document as DocxDocument
+    from docx.shared import Pt, Cm, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
     data = load_data()
     tasa = data.get('tasa_bna', 60.0)
     cliente = next((c for c in data['clientes'] if c['id'] == cid), None)
@@ -470,14 +474,15 @@ def exportar_carta(cid):
 
     facturas = data.get('facturas', {}).get(str(cid), [])
     hoy = datetime.now()
-    lugar_fecha = f"Los Nogales, {hoy.strftime('%B de %Y').replace('January','enero').replace('February','febrero').replace('March','marzo').replace('April','abril').replace('May','mayo').replace('June','junio').replace('July','julio').replace('August','agosto').replace('September','septiembre').replace('October','octubre').replace('November','noviembre').replace('December','diciembre')}."
+    meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+    lugar_fecha = f"Los Nogales, {meses[hoy.month-1]} de {hoy.year}."
 
-    # Calcular totales
     mo_total = sum(f.get('monto', 0) or 0 for f in facturas)
     int_total = sum(calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa) for f in facturas)
     tot_total = mo_total + int_total
 
-    # Lista de facturas para el texto
+    def fmt(v): return f"$ {v:,.0f}".replace(',', '.')
+
     nums_facturas = [f.get('numero', '') for f in facturas if f.get('numero', '')]
     if nums_facturas:
         if len(nums_facturas) == 1:
@@ -489,83 +494,105 @@ def exportar_carta(cid):
 
     razon_social = cliente.get('razon_social', '')
     cuit_cliente = cliente.get('cuit', '')
-    domicilio_cliente = cliente.get('domicilio', '')
 
-    buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4,
-                            leftMargin=2.5*cm, rightMargin=2.5*cm,
-                            topMargin=2.5*cm, bottomMargin=2.5*cm)
+    doc = DocxDocument()
 
-    def fmt(v): return f"$ {v:,.0f}".replace(',', '.')
+    # Márgenes
+    for section in doc.sections:
+        section.top_margin = Cm(2.5)
+        section.bottom_margin = Cm(2.5)
+        section.left_margin = Cm(3)
+        section.right_margin = Cm(2.5)
 
-    bold = ParagraphStyle('bold', fontSize=10, fontName='Helvetica-Bold', leading=14)
-    normal = ParagraphStyle('normal', fontSize=10, fontName='Helvetica', leading=14)
-    center = ParagraphStyle('center', fontSize=10, fontName='Helvetica', leading=14, alignment=1)
-    bold_center = ParagraphStyle('bold_center', fontSize=10, fontName='Helvetica-Bold', leading=14, alignment=1)
-    justified = ParagraphStyle('justified', fontSize=10, fontName='Helvetica', leading=16, alignment=4, spaceAfter=8)
+    def set_font(run, bold=False, size=11):
+        run.font.name = 'Arial'
+        run.font.size = Pt(size)
+        run.font.bold = bold
 
-    elements = []
+    # Cabecera — tabla dos columnas
+    tabla_cab = doc.add_table(rows=8, cols=2)
+    tabla_cab.style = 'Table Grid'
+    cab_izq = ['LUBRE S.R.L', 'LUBRE S.R.L.', 'Méjico 778', 'LOS NOGALES', 'RUTA NACIONAL Nº 9 KM 1306', 'AV. CONSTITUCIÓN 2800 SOLAR DE TAFÍ', '4101', 'TUCUMÁN']
+    cab_der = [razon_social, razon_social, 'LOS NOGALES', 'RUTA NACIONAL Nº 9 KM 1306', 'AV. CONSTITUCIÓN 2800 SOLAR DE TAFÍ', '', '4103', 'TAFÍ VIEJO – TUCUMÁN']
 
-    # Cabecera tipo carta documento — dos columnas: remitente | destinatario
-    cab_data = [
-        [Paragraph('<b>LUBRE S.R.L</b>', bold), Paragraph(f'<b>{razon_social}</b>', bold)],
-        [Paragraph('<b>LUBRE S.R.L.</b>', bold), Paragraph(f'<b>{razon_social}</b>', bold)],
-        [Paragraph('Méjico 778', normal), Paragraph('LOS NOGALES', normal)],
-        [Paragraph('LOS NOGALES', normal), Paragraph('RUTA NACIONAL Nº 9 KM 1306', normal)],
-        [Paragraph('RUTA NACIONAL Nº 9 KM 1306', normal), Paragraph('AV. CONSTITUCIÓN 2800 SOLAR DE TAFÍ', normal)],
-        [Paragraph('AV. CONSTITUCIÓN 2800 SOLAR DE TAFÍ', normal), Paragraph('', normal)],
-        [Paragraph('4101', normal), Paragraph('4103', normal)],
-        [Paragraph('TUCUMÁN', normal), Paragraph('TAFÍ VIEJO – TUCUMÁN', normal)],
-    ]
+    for i, (izq, der) in enumerate(zip(cab_izq, cab_der)):
+        fila = tabla_cab.rows[i]
+        c_izq = fila.cells[0]
+        c_der = fila.cells[1]
+        p_izq = c_izq.paragraphs[0]
+        p_der = c_der.paragraphs[0]
+        r_izq = p_izq.add_run(izq)
+        r_der = p_der.add_run(der)
+        bold_row = i < 2
+        set_font(r_izq, bold=bold_row, size=10)
+        set_font(r_der, bold=bold_row, size=10)
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+        for cell in [c_izq, c_der]:
+            tc = cell._tc
+            tcPr = tc.get_or_add_tcPr()
+            tcBorders = OxmlElement('w:tcBorders')
+            for border_name in ['top','left','bottom','right']:
+                border = OxmlElement(f'w:{border_name}')
+                border.set(qn('w:val'), 'none')
+                tcBorders.append(border)
+            tcPr.append(tcBorders)
 
-    t_cab = Table(cab_data, colWidths=[8*cm, 8*cm])
-    t_cab.setStyle(TableStyle([
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('TOPPADDING', (0, 0), (-1, -1), 1),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
-        ('LINEAFTER', (0, 0), (0, -1), 0.5, colors.HexColor('#cbd5e1')),
-        ('LEFTPADDING', (1, 0), (1, -1), 12),
-    ]))
-    elements.append(t_cab)
-    elements.append(Spacer(1, 0.5*cm))
-    elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#cbd5e1')))
-    elements.append(Spacer(1, 0.4*cm))
+    doc.add_paragraph()
 
     # Lugar y fecha
-    elements.append(Paragraph(f'<b>{lugar_fecha}</b>', bold))
-    elements.append(Spacer(1, 0.5*cm))
+    p_fecha = doc.add_paragraph()
+    p_fecha.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    r = p_fecha.add_run(lugar_fecha)
+    set_font(r, bold=True, size=11)
 
-    # Cuerpo de la carta
+    doc.add_paragraph()
+
+    # Cuerpo
     cuit_txt = f", CUIT {cuit_cliente}," if cuit_cliente else ","
     monto_txt = f" por un monto total de {fmt(tot_total)} (capital {fmt(mo_total)} más intereses {fmt(int_total)})" if tot_total else ""
 
-    cuerpo = (
-        f"<b>MARTÍN VEGA</b>, abogado de la matrícula, en mi carácter de apoderado legal de la firma "
-        f"<b>LUBRE S.R.L.</b> CUIT Nº 30-71005185-9, conforme mandato otorgado mediante escritura pública "
-        f"Nº 770 de fecha 26/09/2019, pasada ante la Escribanía Nicolás Federico Odstrcil, adscripto al "
-        f"Registro Notarial Nº 51, me dirijo a Ud. <b>{razon_social}</b>{cuit_txt} en razón de no haber "
-        f"cancelado la totalidad de la deuda que tiene con mi mandante, emergente de {ref_facturas}{monto_txt}. "
-        f"Lo íntimo, en un plazo de 72 hs, al pago de las mismas, con más sus intereses, bajo apercibimiento "
-        f"de iniciar acción judicial que corresponde en vuestra contra. Pongo en su conocimiento que la "
-        f"cancelación deberá hacerla en el domicilio de LUBRE S.R.L., Ruta Nacional Nº 9, KM 1306, "
-        f"en el horario de 08:00 a 17:00 hs, Los Nogales, Teléfono Celular (381) 156069919. "
-        f"<b>Queda Ud. debidamente intimado y notificado.</b>"
-        + "—" * 80
-    )
-    elements.append(Paragraph(cuerpo, justified))
-    elements.append(Spacer(1, 1.5*cm))
+    p_cuerpo = doc.add_paragraph()
+    p_cuerpo.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+    def add_run(p, text, bold=False):
+        r = p.add_run(text)
+        set_font(r, bold=bold, size=11)
+        return r
+
+    add_run(p_cuerpo, 'MARTÍN VEGA', bold=True)
+    add_run(p_cuerpo, ', abogado de la matrícula, en mi carácter de apoderado legal de la firma ')
+    add_run(p_cuerpo, 'LUBRE S.R.L.', bold=True)
+    add_run(p_cuerpo, ' CUIT Nº 30-71005185-9, conforme mandato otorgado mediante escritura pública Nº 770 de fecha 26/09/2019, pasada ante la Escribanía Nicolás Federico Odstrcil, adscripto al Registro Notarial Nº 51, me dirijo a Ud. ')
+    add_run(p_cuerpo, razon_social, bold=True)
+    add_run(p_cuerpo, f'{cuit_txt} en razón de no haber cancelado la totalidad de la deuda que tiene con mi mandante, emergente de {ref_facturas}{monto_txt}. Lo íntimo, en un plazo de 72 hs, al pago de las mismas, con más sus intereses, bajo apercibimiento de iniciar acción judicial que corresponde en vuestra contra. Pongo en su conocimiento que la cancelación deberá hacerla en el domicilio de LUBRE S.R.L., Ruta Nacional Nº 9, KM 1306, en el horario de 08:00 a 17:00 hs, Los Nogales, Teléfono Celular (381) 156069919. ')
+    add_run(p_cuerpo, 'Queda Ud. debidamente intimado y notificado.', bold=True)
+    add_run(p_cuerpo, '—' * 60)
+
+    doc.add_paragraph()
+    doc.add_paragraph()
 
     # Firma
-    elements.append(Paragraph("_______________________________", center))
-    elements.append(Paragraph("<b>MARTÍN VEGA</b>", bold_center))
-    elements.append(Paragraph("Abogado – Apoderado LUBRE S.R.L.", center))
+    p_firma = doc.add_paragraph()
+    p_firma.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    add_run(p_firma, '_______________________________')
 
-    doc.build(elements)
+    p_nombre = doc.add_paragraph()
+    p_nombre.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    add_run(p_nombre, 'MARTÍN VEGA', bold=True)
+
+    p_cargo = doc.add_paragraph()
+    p_cargo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    add_run(p_cargo, 'Abogado – Apoderado LUBRE S.R.L.')
+
+    buf = io.BytesIO()
+    doc.save(buf)
     buf.seek(0)
     nombre = razon_social.replace(' ', '_').lower()
-    return send_file(buf, mimetype='application/pdf', as_attachment=True,
-                     download_name=f'carta_documento_{nombre}_{hoy.strftime("%Y%m%d")}.pdf')
+    return send_file(buf,
+                     mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                     as_attachment=True,
+                     download_name=f'carta_documento_{nombre}_{hoy.strftime("%Y%m%d")}.docx')
 
 @app.route('/exportar/pdf')
 @login_required
