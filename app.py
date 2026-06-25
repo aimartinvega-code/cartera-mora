@@ -326,6 +326,139 @@ def get_resumen():
         resumen[estado] = {'cantidad': len(cs), 'monto_original': monto_total, 'total_adeudado': adeudado_total}
     return jsonify(resumen)
 
+@app.route('/exportar/pdf/cliente/<int:cid>')
+@login_required
+def exportar_pdf_cliente(cid):
+    data = load_data()
+    tasa = data.get('tasa_bna', 60.0)
+    cliente = next((c for c in data['clientes'] if c['id'] == cid), None)
+    if not cliente:
+        return 'Cliente no encontrado', 404
+
+    facturas = data.get('facturas', {}).get(str(cid), [])
+    historial = data.get('historial', {}).get(str(cid), [])
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=2*cm, rightMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+
+    styles = getSampleStyleSheet()
+    def fmt(v): return f"$ {v:,.0f}".replace(',', '.') if v else '$ 0'
+
+    color_header = colors.HexColor('#1a2e4a')
+    color_alt = colors.HexColor('#f0f4f8')
+
+    titulo_style = ParagraphStyle('titulo', fontSize=16, textColor=color_header, fontName='Helvetica-Bold', spaceAfter=4)
+    sub_style = ParagraphStyle('sub', fontSize=9, textColor=colors.HexColor('#64748b'), spaceAfter=16)
+    h2_style = ParagraphStyle('h2', fontSize=11, textColor=color_header, fontName='Helvetica-Bold', spaceAfter=8, spaceBefore=14)
+    normal = ParagraphStyle('normal', fontSize=9, leading=14)
+
+    elements = []
+
+    # Encabezado
+    elements.append(Paragraph(f"REPORTE DE CLIENTE — CARTERA EN MORA", titulo_style))
+    elements.append(Paragraph(f"Generado el {datetime.now().strftime('%d/%m/%Y a las %H:%M')} hs · Tasa de interés: {tasa}% anual", sub_style))
+
+    # Datos del cliente
+    mo_total = sum(f.get('monto', 0) or 0 for f in facturas) if facturas else (cliente.get('monto_original', 0) or 0)
+    int_total = sum(calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa) for f in facturas) if facturas else (cliente.get('intereses', 0) or 0)
+    tot_total = mo_total + int_total
+
+    datos = [
+        ['Razón Social', cliente.get('razon_social', '')],
+        ['Estado', cliente.get('estado', '')],
+        ['Sub-estado', cliente.get('sub_estado', '') or '—'],
+        ['Perspectiva de Cobro', cliente.get('perspectiva', '') or '—'],
+        ['Última Gestión', cliente.get('fecha_gestion', '') or '—'],
+        ['Observaciones', cliente.get('observaciones', '') or '—'],
+        ['Monto Original', fmt(mo_total)],
+        ['Intereses acumulados', fmt(int_total)],
+        ['TOTAL ADEUDADO', fmt(tot_total)],
+    ]
+
+    t_datos = Table(datos, colWidths=[5*cm, 11*cm])
+    t_datos.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#64748b')),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#1a2e4a')),
+        ('TEXTCOLOR', (0, -1), (-1, -1), colors.white),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, -1), (-1, -1), 10),
+        ('ROWBACKGROUND', (0, 0), (-1, -2), [colors.white, color_alt]),
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#e2e8f0')),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(t_datos)
+
+    # Facturas
+    if facturas:
+        elements.append(Paragraph("Detalle de Facturas", h2_style))
+        f_headers = ['N° Factura', 'Descripción', 'Fecha Mora', 'Monto', 'Interés al día', 'Total']
+        f_filas = [f_headers]
+        for f in facturas:
+            monto = f.get('monto', 0) or 0
+            int_ = calcular_interes_factura(monto, f.get('fecha_mora', ''), tasa)
+            fecha_fmt = f.get('fecha_mora', '—')
+            if fecha_fmt and fecha_fmt != '—':
+                fecha_fmt = fecha_fmt.split('-')
+                fecha_fmt = f"{fecha_fmt[2]}/{fecha_fmt[1]}/{fecha_fmt[0]}"
+            f_filas.append([
+                f.get('numero', '—') or '—',
+                f.get('descripcion', '—') or '—',
+                fecha_fmt,
+                fmt(monto), fmt(int_), fmt(monto + int_)
+            ])
+        f_filas.append(['', 'TOTALES', '', fmt(mo_total), fmt(int_total), fmt(tot_total)])
+
+        t_fact = Table(f_filas, colWidths=[2.5*cm, 4*cm, 2.5*cm, 2.8*cm, 2.8*cm, 2.8*cm])
+        t_fact.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), color_header),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('ROWBACKGROUND', (0, 1), (-1, -2), [colors.white, color_alt]),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e2e8f0')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#cbd5e1')),
+            ('ALIGN', (3, 0), (-1, -1), 'RIGHT'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+        ]))
+        elements.append(t_fact)
+
+    # Historial
+    if historial:
+        elements.append(Paragraph("Historial de Gestiones", h2_style))
+        h_filas = [['Fecha', 'Tipo', 'Descripción']]
+        for h in historial:
+            h_filas.append([h.get('fecha', ''), h.get('tipo', ''), Paragraph(h.get('nota', ''), ParagraphStyle('hn', fontSize=8, leading=10))])
+        t_hist = Table(h_filas, colWidths=[3.5*cm, 4*cm, 9.9*cm])
+        t_hist.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), color_header),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('ROWBACKGROUND', (0, 1), (-1, -1), [colors.white, color_alt]),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#cbd5e1')),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ]))
+        elements.append(t_hist)
+
+    doc.build(elements)
+    buf.seek(0)
+    nombre = cliente.get('razon_social', 'cliente').replace(' ', '_').lower()
+    return send_file(buf, mimetype='application/pdf', as_attachment=True,
+                     download_name=f'reporte_{nombre}_{datetime.now().strftime("%Y%m%d")}.pdf')
+
 @app.route('/exportar/pdf')
 @login_required
 def exportar_pdf():

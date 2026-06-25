@@ -452,7 +452,7 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
   <!-- PANEL CLIENTES -->
   <div class="panel active" id="panel-clientes">
     <div class="tasa-bar">
-      ⚡ <strong>Tasa activa BNA:</strong>
+      ⚡ <strong>Tasa de interés:</strong>
       <input class="tasa-input" id="tasa-input" type="number" step="0.01" value="60"> % anual
       <button class="btn-tasa" onclick="guardarTasa()">Actualizar</button>
       <span id="tasa-info" style="color:#92400e;font-size:0.75rem"></span>
@@ -603,7 +603,8 @@ function renderTabla(lista) {
       <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'observaciones', 'text')">${c.observaciones || '—'}</span></td>
       <td>
         <div class="row-actions">
-          <button class="btn-icon expand" onclick="toggleHistorial(${c.id})" title="Historial">📝</button>
+          <button class="btn-icon expand" onclick="toggleHistorial(${c.id})" title="Facturas y gestiones">📝</button>
+          <button class="btn-icon" style="background:#e0f2fe;color:#0369a1" onclick="exportarPDFCliente(${c.id})" title="Exportar PDF">📄</button>
           <button class="btn-icon delete" onclick="eliminarCliente(${c.id})" title="Eliminar">🗑</button>
         </div>
       </td>
@@ -799,6 +800,11 @@ async function eliminarFactura(cid, fid) {
   await cargarFacturas(cid);
   await cargarClientes();
   toast('Factura eliminada', '');
+}
+
+// ---- PDF CLIENTE ----
+function exportarPDFCliente(id) {
+  window.open(`/exportar/pdf/cliente/${id}`, '_blank');
 }
 
 // ---- TASA BNA ----
