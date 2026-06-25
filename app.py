@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
-from datetime import datetime
+from datetime import datetime, date
 import json, os, io
 from functools import wraps
 from reportlab.lib.pagesizes import A4, landscape
@@ -7,11 +7,10 @@ from reportlab.lib import colors
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import requests
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'cartera-mora-secret-2024')
+app.secret_key = os.environ.get('SECRET_KEY') or 'cartera-mora-secret-2024'
 
 # --- Config ---
 APP_PASSWORD = os.environ.get('APP_PASSWORD', 'admin123')
@@ -25,11 +24,42 @@ DATA_FILE = os.path.join(DATA_DIR, 'cartera.json')
 ESTADOS = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'COBRADO/CERRADO']
 PERSPECTIVAS = ['Alta', 'Media', 'Baja', 'Incobrable', '']
 
+# --- Calculo de intereses ---
+def calcular_interes_factura(monto, fecha_mora_str, tasa_anual):
+    """Interés simple: monto * tasa_diaria * dias"""
+    if not fecha_mora_str or not monto or not tasa_anual:
+        return 0
+    try:
+        fecha_mora = datetime.strptime(fecha_mora_str, '%Y-%m-%d').date()
+        hoy = date.today()
+        dias = (hoy - fecha_mora).days
+        if dias <= 0:
+            return 0
+        tasa_diaria = tasa_anual / 365 / 100
+        return round(monto * tasa_diaria * dias)
+    except Exception:
+        return 0
+
+def calcular_totales_cliente(cliente, tasa_anual):
+    """Calcula monto_original e intereses sumando todas las facturas"""
+    facturas = cliente.get('facturas', [])
+    if not facturas:
+        return cliente.get('monto_original', 0) or 0, cliente.get('intereses', 0) or 0
+    monto_total = sum(f.get('monto', 0) or 0 for f in facturas)
+    intereses_total = sum(calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa_anual) for f in facturas)
+    return monto_total, intereses_total
+
 # --- Persistencia ---
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            data = json.load(f)
+            # Migracion: agregar campos nuevos si no existen
+            if 'tasa_bna' not in data:
+                data['tasa_bna'] = 60.0
+            if 'facturas' not in data:
+                data['facturas'] = {}
+            return data
     return cargar_datos_iniciales()
 
 def save_data(data):
@@ -53,7 +83,7 @@ def cargar_datos_iniciales():
         {"id": 13, "razon_social": "VISION EMPRESARIAL NOROESTE SRL", "monto_original": 27623401, "intereses": 0, "estado": "JUICIO", "sub_estado": "EJECUCION DE SENTENCIA", "fecha_gestion": "", "observaciones": "", "perspectiva": "Media"},
         {"id": 14, "razon_social": "NIEVAS NELSON", "monto_original": 3827682, "intereses": 0, "estado": "JUICIO", "sub_estado": "SENTENCIA", "fecha_gestion": "", "observaciones": "", "perspectiva": "Media"},
     ]
-    data = {"clientes": clientes, "historial": {}, "next_id": 15}
+    data = {"clientes": clientes, "historial": {}, "facturas": {}, "tasa_bna": 60.0, "next_id": 15}
     save_data(data)
     return data
 
@@ -84,7 +114,6 @@ def enviar_email_cambio_estado(cliente, estado_anterior, estado_nuevo):
                 <p><strong>Cliente:</strong> {cliente['razon_social']}</p>
                 <p><strong>Estado anterior:</strong> {estado_anterior}</p>
                 <p><strong>Estado nuevo:</strong> {estado_nuevo}</p>
-                <p><strong>Monto original:</strong> $ {cliente['monto_original']:,.0f}</p>
                 <p><strong>Fecha:</strong> {fecha}</p>
                 """
             },
@@ -115,11 +144,38 @@ def index():
     data = load_data()
     return render_template('index.html', clientes=data['clientes'], estados=ESTADOS, perspectivas=PERSPECTIVAS)
 
+@app.route('/api/config', methods=['GET'])
+@login_required
+def get_config():
+    data = load_data()
+    return jsonify({'tasa_bna': data.get('tasa_bna', 60.0)})
+
+@app.route('/api/config', methods=['PUT'])
+@login_required
+def update_config():
+    data = load_data()
+    body = request.json
+    if 'tasa_bna' in body:
+        data['tasa_bna'] = float(body['tasa_bna'])
+    save_data(data)
+    return jsonify({'tasa_bna': data['tasa_bna']})
+
 @app.route('/api/clientes', methods=['GET'])
 @login_required
 def get_clientes():
     data = load_data()
-    return jsonify(data['clientes'])
+    tasa = data.get('tasa_bna', 60.0)
+    clientes = []
+    for c in data['clientes']:
+        c2 = dict(c)
+        facturas = data.get('facturas', {}).get(str(c['id']), [])
+        c2['facturas'] = facturas
+        if facturas:
+            mo, int_ = calcular_totales_cliente({'facturas': facturas}, tasa)
+            c2['monto_original'] = mo
+            c2['intereses'] = int_
+        clientes.append(c2)
+    return jsonify(clientes)
 
 @app.route('/api/clientes', methods=['POST'])
 @login_required
@@ -137,6 +193,7 @@ def add_cliente():
     data['clientes'].append(nuevo)
     data['next_id'] += 1
     data['historial'][str(nuevo['id'])] = []
+    data['facturas'][str(nuevo['id'])] = []
     save_data(data)
     return jsonify(nuevo)
 
@@ -162,6 +219,7 @@ def delete_cliente(cid):
     data = load_data()
     data['clientes'] = [c for c in data['clientes'] if c['id'] != cid]
     data['historial'].pop(str(cid), None)
+    data['facturas'].pop(str(cid), None)
     save_data(data)
     return jsonify({'ok': True})
 
@@ -180,7 +238,6 @@ def add_historial(cid):
     if str(cid) not in data['historial']:
         data['historial'][str(cid)] = []
     data['historial'][str(cid)].insert(0, entrada)
-    # Actualizar fecha_gestion del cliente
     for c in data['clientes']:
         if c['id'] == cid:
             c['fecha_gestion'] = datetime.now().strftime('%d/%m/%Y')
@@ -188,31 +245,92 @@ def add_historial(cid):
     save_data(data)
     return jsonify(entrada)
 
+# --- Facturas ---
+@app.route('/api/facturas/<int:cid>', methods=['GET'])
+@login_required
+def get_facturas(cid):
+    data = load_data()
+    tasa = data.get('tasa_bna', 60.0)
+    facturas = data.get('facturas', {}).get(str(cid), [])
+    # Agregar interes calculado a cada factura
+    for f in facturas:
+        f['interes_calculado'] = calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa)
+        f['total'] = (f.get('monto', 0) or 0) + f['interes_calculado']
+    return jsonify(facturas)
+
+@app.route('/api/facturas/<int:cid>', methods=['POST'])
+@login_required
+def add_factura(cid):
+    data = load_data()
+    tasa = data.get('tasa_bna', 60.0)
+    factura = request.json
+    factura['id'] = datetime.now().strftime('%Y%m%d%H%M%S%f')
+    factura.setdefault('numero', '')
+    factura.setdefault('monto', 0)
+    factura.setdefault('fecha_mora', '')
+    factura.setdefault('descripcion', '')
+    if str(cid) not in data.get('facturas', {}):
+        data.setdefault('facturas', {})[str(cid)] = []
+    data['facturas'][str(cid)].append(factura)
+    # Recalcular totales del cliente
+    facturas = data['facturas'][str(cid)]
+    mo, int_ = calcular_totales_cliente({'facturas': facturas}, tasa)
+    for c in data['clientes']:
+        if c['id'] == cid:
+            c['monto_original'] = mo
+            c['intereses'] = int_
+            break
+    save_data(data)
+    factura['interes_calculado'] = calcular_interes_factura(factura['monto'], factura['fecha_mora'], tasa)
+    factura['total'] = factura['monto'] + factura['interes_calculado']
+    return jsonify(factura)
+
+@app.route('/api/facturas/<int:cid>/<fid>', methods=['DELETE'])
+@login_required
+def delete_factura(cid, fid):
+    data = load_data()
+    tasa = data.get('tasa_bna', 60.0)
+    facturas = data.get('facturas', {}).get(str(cid), [])
+    data['facturas'][str(cid)] = [f for f in facturas if f.get('id') != fid]
+    # Recalcular totales
+    facturas_new = data['facturas'][str(cid)]
+    mo, int_ = calcular_totales_cliente({'facturas': facturas_new}, tasa)
+    for c in data['clientes']:
+        if c['id'] == cid:
+            c['monto_original'] = mo
+            c['intereses'] = int_
+            break
+    save_data(data)
+    return jsonify({'ok': True})
+
 @app.route('/api/resumen', methods=['GET'])
 @login_required
 def get_resumen():
     data = load_data()
+    tasa = data.get('tasa_bna', 60.0)
     resumen = {}
-    for estado in ESTADOS:
-        clientes_estado = [c for c in data['clientes'] if c['estado'] == estado]
-        resumen[estado] = {
-            'cantidad': len(clientes_estado),
-            'monto_original': sum(c.get('monto_original', 0) or 0 for c in clientes_estado),
-            'total_adeudado': sum((c.get('monto_original', 0) or 0) + (c.get('intereses', 0) or 0) for c in clientes_estado),
-        }
-    # Mediación también
-    clientes_med = [c for c in data['clientes'] if c['estado'] == 'MEDIACION']
-    resumen['MEDIACION'] = {
-        'cantidad': len(clientes_med),
-        'monto_original': sum(c.get('monto_original', 0) or 0 for c in clientes_med),
-        'total_adeudado': sum((c.get('monto_original', 0) or 0) + (c.get('intereses', 0) or 0) for c in clientes_med),
-    }
+    todos = ESTADOS + ['MEDIACION']
+    for estado in todos:
+        cs = [c for c in data['clientes'] if c['estado'] == estado]
+        monto_total = 0
+        adeudado_total = 0
+        for c in cs:
+            facturas = data.get('facturas', {}).get(str(c['id']), [])
+            if facturas:
+                mo, int_ = calcular_totales_cliente({'facturas': facturas}, tasa)
+            else:
+                mo = c.get('monto_original', 0) or 0
+                int_ = c.get('intereses', 0) or 0
+            monto_total += mo
+            adeudado_total += mo + int_
+        resumen[estado] = {'cantidad': len(cs), 'monto_original': monto_total, 'total_adeudado': adeudado_total}
     return jsonify(resumen)
 
 @app.route('/exportar/pdf')
 @login_required
 def exportar_pdf():
     data = load_data()
+    tasa = data.get('tasa_bna', 60.0)
     clientes = data['clientes']
 
     buf = io.BytesIO()
@@ -222,51 +340,47 @@ def exportar_pdf():
 
     styles = getSampleStyleSheet()
     titulo_style = ParagraphStyle('titulo', parent=styles['Title'],
-                                   fontSize=16, textColor=colors.HexColor('#1a2e4a'),
-                                   spaceAfter=4)
+                                   fontSize=16, textColor=colors.HexColor('#1a2e4a'), spaceAfter=4)
     subtitulo_style = ParagraphStyle('sub', parent=styles['Normal'],
-                                      fontSize=9, textColor=colors.HexColor('#64748b'),
-                                      spaceAfter=12)
+                                      fontSize=9, textColor=colors.HexColor('#64748b'), spaceAfter=12)
     cell_style = ParagraphStyle('cell', fontSize=7.5, leading=10)
+
+    def fmt(v): return f"$ {v:,.0f}".replace(',', '.') if v else '-'
 
     elements = []
     elements.append(Paragraph("INFORME DE ESTADO DE DEUDA — CARTERA EN MORA", titulo_style))
-    elements.append(Paragraph(f"Generado el {datetime.now().strftime('%d/%m/%Y a las %H:%M')} hs · Montos en ARS", subtitulo_style))
+    elements.append(Paragraph(f"Generado el {datetime.now().strftime('%d/%m/%Y a las %H:%M')} hs · Tasa BNA: {tasa}% anual · Montos en ARS", subtitulo_style))
 
     headers = ['N°', 'Cliente / Razón Social', 'Monto Original', 'Intereses', 'Total Adeudado', 'Estado', 'Última Gestión', 'Perspectiva', 'Observaciones']
     filas = [headers]
+    total_mo = total_int = 0
     for i, c in enumerate(clientes):
-        mo = c.get('monto_original', 0) or 0
-        int_ = c.get('intereses', 0) or 0
+        facturas = data.get('facturas', {}).get(str(c['id']), [])
+        if facturas:
+            mo, int_ = calcular_totales_cliente({'facturas': facturas}, tasa)
+        else:
+            mo = c.get('monto_original', 0) or 0
+            int_ = c.get('intereses', 0) or 0
         total = mo + int_
-        def fmt(v): return f"$ {v:,.0f}".replace(',', '.') if v else '-'
+        total_mo += mo
+        total_int += int_
         filas.append([
             str(i + 1),
             Paragraph(c.get('razon_social', ''), cell_style),
-            fmt(mo),
-            fmt(int_),
-            fmt(total),
+            fmt(mo), fmt(int_), fmt(total),
             c.get('estado', ''),
             c.get('fecha_gestion', '') or '-',
             c.get('perspectiva', '') or '-',
             Paragraph(c.get('observaciones', '') or '-', cell_style),
         ])
 
-    # Totales
-    total_mo = sum(c.get('monto_original', 0) or 0 for c in clientes)
-    total_int = sum(c.get('intereses', 0) or 0 for c in clientes)
-    total_tot = total_mo + total_int
-    def fmt(v): return f"$ {v:,.0f}".replace(',', '.') if v else '-'
-    filas.append(['', 'TOTALES', fmt(total_mo), fmt(total_int), fmt(total_tot), '', '', '', ''])
+    filas.append(['', 'TOTALES', fmt(total_mo), fmt(total_int), fmt(total_mo + total_int), '', '', '', ''])
 
     col_widths = [1*cm, 5.5*cm, 3*cm, 2.5*cm, 3*cm, 3*cm, 2.8*cm, 2.2*cm, 4.5*cm]
     tabla = Table(filas, colWidths=col_widths, repeatRows=1)
-
     color_header = colors.HexColor('#1a2e4a')
     color_alt = colors.HexColor('#f0f4f8')
-    color_total = colors.HexColor('#e2e8f0')
-
-    style_cmds = [
+    tabla.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), color_header),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -276,7 +390,7 @@ def exportar_pdf():
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 1), (-1, -1), 7.5),
         ('ROWBACKGROUND', (0, 1), (-1, -2), [colors.white, color_alt]),
-        ('BACKGROUND', (0, -1), (-1, -1), color_total),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e2e8f0')),
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
         ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#cbd5e1')),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
@@ -284,44 +398,13 @@ def exportar_pdf():
         ('LEFTPADDING', (0, 0), (-1, -1), 5),
         ('RIGHTPADDING', (0, 0), (-1, -1), 5),
         ('ALIGN', (2, 1), (4, -1), 'RIGHT'),
-    ]
-    tabla.setStyle(TableStyle(style_cmds))
-    elements.append(tabla)
-
-    # Resumen por estado
-    elements.append(Spacer(1, 0.6*cm))
-    elements.append(Paragraph("Resumen por Estado", ParagraphStyle('h2', fontSize=11, textColor=colors.HexColor('#1a2e4a'), fontName='Helvetica-Bold', spaceAfter=6)))
-
-    res_headers = ['Estado', 'Cantidad', 'Monto Original (ARS)', 'Total Adeudado (ARS)']
-    res_filas = [res_headers]
-    todos_estados = ESTADOS + ['MEDIACION']
-    for estado in todos_estados:
-        cs = [c for c in clientes if c['estado'] == estado]
-        mo = sum(c.get('monto_original', 0) or 0 for c in cs)
-        tot = sum((c.get('monto_original', 0) or 0) + (c.get('intereses', 0) or 0) for c in cs)
-        if cs or estado in ['PREJUDICIAL', 'JUICIO']:
-            res_filas.append([estado, str(len(cs)), fmt(mo), fmt(tot)])
-
-    res_tabla = Table(res_filas, colWidths=[5*cm, 2.5*cm, 5*cm, 5*cm])
-    res_tabla.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), color_header),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 8),
-        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#cbd5e1')),
-        ('ROWBACKGROUND', (0, 1), (-1, -1), [colors.white, color_alt]),
-        ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-        ('TOPPADDING', (0, 0), (-1, -1), 5),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]))
-    elements.append(res_tabla)
+    elements.append(tabla)
 
     doc.build(elements)
     buf.seek(0)
-    fecha_str = datetime.now().strftime('%Y%m%d')
-    return send_file(buf, mimetype='application/pdf',
-                     as_attachment=True,
-                     download_name=f'cartera_mora_{fecha_str}.pdf')
+    return send_file(buf, mimetype='application/pdf', as_attachment=True,
+                     download_name=f'cartera_mora_{datetime.now().strftime("%Y%m%d")}.pdf')
 
 if __name__ == '__main__':
     app.run(debug=True)

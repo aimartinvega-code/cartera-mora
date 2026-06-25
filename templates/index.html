@@ -357,6 +357,76 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
   margin-bottom: 1rem;
 }
 .grafico-card canvas { max-height: 280px; }
+
+/* FACTURAS */
+.expand-tabs { display: flex; gap: 0; border-bottom: 1.5px solid var(--border); margin-bottom: 0.75rem; }
+.expand-tab {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--slate);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1.5px;
+  transition: all 0.15s;
+}
+.expand-tab.active { color: var(--navy); border-bottom-color: var(--navy); }
+.expand-section { display: none; }
+.expand-section.active { display: block; }
+
+.facturas-form { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; align-items: flex-end; }
+.facturas-form input {
+  padding: 0.4rem 0.65rem;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  outline: none;
+}
+.facturas-form input:focus { border-color: var(--navy); }
+.facturas-form .f-num { width: 110px; }
+.facturas-form .f-monto { width: 130px; }
+.facturas-form .f-fecha { width: 140px; }
+.facturas-form .f-desc { flex: 1; min-width: 140px; }
+
+.facturas-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.facturas-table th { background: #f1f5f9; padding: 0.4rem 0.6rem; text-align: left; font-size: 0.75rem; color: var(--slate); font-weight: 700; }
+.facturas-table td { padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--border); }
+.facturas-table tr:last-child td { border-bottom: none; }
+.facturas-table .num { font-variant-numeric: tabular-nums; text-align: right; }
+.facturas-total { background: #f8fafc; font-weight: 700; }
+
+.tasa-bar {
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+  margin-bottom: 1rem;
+}
+.tasa-bar strong { color: var(--navy); }
+.tasa-input {
+  width: 80px;
+  padding: 0.3rem 0.5rem;
+  border: 1.5px solid #f59e0b;
+  border-radius: 5px;
+  font-size: 0.82rem;
+  text-align: center;
+  outline: none;
+}
+.btn-tasa {
+  padding: 0.3rem 0.7rem;
+  background: #92400e;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-tasa:hover { background: #78350f; }
 </style>
 </head>
 <body>
@@ -381,6 +451,12 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
 
   <!-- PANEL CLIENTES -->
   <div class="panel active" id="panel-clientes">
+    <div class="tasa-bar">
+      ⚡ <strong>Tasa activa BNA:</strong>
+      <input class="tasa-input" id="tasa-input" type="number" step="0.01" value="60"> % anual
+      <button class="btn-tasa" onclick="guardarTasa()">Actualizar</button>
+      <span id="tasa-info" style="color:#92400e;font-size:0.75rem"></span>
+    </div>
     <div class="filtros">
       <input type="text" id="buscar" placeholder="🔍 Buscar cliente..." oninput="filtrarTabla()">
       <select id="filtro-estado" onchange="filtrarTabla()">
@@ -534,24 +610,43 @@ function renderTabla(lista) {
     `;
     tbody.appendChild(tr);
 
-    // Fila historial
+    // Fila historial + facturas
     const trH = document.createElement('tr');
     trH.classList.add('historial-row');
     trH.id = `hist-row-${c.id}`;
     trH.innerHTML = `
       <td colspan="10" class="historial-cell">
-        <div class="historial-header">
-          <span>📋 Historial de gestiones — ${c.razon_social}</span>
+        <div class="expand-tabs">
+          <div class="expand-tab active" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
+          <div class="expand-tab" onclick="switchTab(${c.id}, 'gestiones', this)">📝 Gestiones</div>
         </div>
-        <div class="historial-form">
-          <select name="tipo" id="tipo-${c.id}">
-            ${TIPOS_GESTION.map(t => `<option>${t}</option>`).join('')}
-          </select>
-          <input name="nota" id="nota-${c.id}" placeholder="Descripción de la gestión..." />
-          <button class="btn-hist" onclick="agregarGestion(${c.id})">Registrar</button>
+
+        <!-- FACTURAS -->
+        <div class="expand-section active" id="sec-facturas-${c.id}">
+          <div class="facturas-form">
+            <input class="f-num" id="f-num-${c.id}" placeholder="N° Factura">
+            <input class="f-monto" id="f-monto-${c.id}" type="number" placeholder="Monto ($)">
+            <input class="f-fecha" id="f-fecha-${c.id}" type="date" title="Fecha de mora">
+            <input class="f-desc" id="f-desc-${c.id}" placeholder="Descripción (opcional)">
+            <button class="btn-hist" onclick="agregarFactura(${c.id})">＋ Agregar</button>
+          </div>
+          <div id="facturas-list-${c.id}">
+            <span class="hist-empty">Cargando facturas...</span>
+          </div>
         </div>
-        <div class="hist-list" id="hist-list-${c.id}">
-          <span class="hist-empty">Cargando historial...</span>
+
+        <!-- GESTIONES -->
+        <div class="expand-section" id="sec-gestiones-${c.id}">
+          <div class="historial-form">
+            <select name="tipo" id="tipo-${c.id}">
+              ${TIPOS_GESTION.map(t => `<option>${t}</option>`).join('')}
+            </select>
+            <input name="nota" id="nota-${c.id}" placeholder="Descripción de la gestión..." />
+            <button class="btn-hist" onclick="agregarGestion(${c.id})">Registrar</button>
+          </div>
+          <div class="hist-list" id="hist-list-${c.id}">
+            <span class="hist-empty">Cargando historial...</span>
+          </div>
         </div>
       </td>
     `;
@@ -614,8 +709,117 @@ async function updateCliente(id, updates) {
 async function toggleHistorial(id) {
   const row = document.getElementById(`hist-row-${id}`);
   if (row.classList.toggle('open')) {
+    await cargarFacturas(id);
     await cargarHistorial(id);
   }
+}
+
+function switchTab(id, tab, el) {
+  document.querySelectorAll(`#hist-row-${id} .expand-tab`).forEach(t => t.classList.remove('active'));
+  document.querySelectorAll(`#hist-row-${id} .expand-section`).forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(`sec-${tab}-${id}`).classList.add('active');
+}
+
+// ---- FACTURAS ----
+async function cargarFacturas(id) {
+  const res = await fetch(`/api/facturas/${id}`);
+  const facturas = await res.json();
+  renderFacturas(id, facturas);
+}
+
+function renderFacturas(id, facturas) {
+  const container = document.getElementById(`facturas-list-${id}`);
+  if (!facturas.length) {
+    container.innerHTML = '<span class="hist-empty">Sin facturas cargadas aún.</span>';
+    return;
+  }
+  const totalMonto = facturas.reduce((s, f) => s + (f.monto || 0), 0);
+  const totalInt = facturas.reduce((s, f) => s + (f.interes_calculado || 0), 0);
+  const totalTot = facturas.reduce((s, f) => s + (f.total || 0), 0);
+
+  container.innerHTML = `
+    <table class="facturas-table">
+      <thead>
+        <tr>
+          <th>N° Factura</th>
+          <th>Descripción</th>
+          <th>Fecha Mora</th>
+          <th class="num">Monto</th>
+          <th class="num">Interés</th>
+          <th class="num">Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${facturas.map(f => `
+          <tr>
+            <td>${f.numero || '—'}</td>
+            <td>${f.descripcion || '—'}</td>
+            <td>${f.fecha_mora ? f.fecha_mora.split('-').reverse().join('/') : '—'}</td>
+            <td class="num">${fmt(f.monto)}</td>
+            <td class="num" style="color:#ca8a04">${fmt(f.interes_calculado)}</td>
+            <td class="num" style="font-weight:700">${fmt(f.total)}</td>
+            <td><button class="btn-icon delete" onclick="eliminarFactura(${id}, '${f.id}')" title="Eliminar">🗑</button></td>
+          </tr>
+        `).join('')}
+        <tr class="facturas-total">
+          <td colspan="3">TOTALES</td>
+          <td class="num">${fmt(totalMonto)}</td>
+          <td class="num" style="color:#ca8a04">${fmt(totalInt)}</td>
+          <td class="num">${fmt(totalTot)}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+}
+
+async function agregarFactura(id) {
+  const numero = document.getElementById(`f-num-${id}`).value.trim();
+  const monto = parseFloat(document.getElementById(`f-monto-${id}`).value) || 0;
+  const fecha_mora = document.getElementById(`f-fecha-${id}`).value;
+  const descripcion = document.getElementById(`f-desc-${id}`).value.trim();
+  if (!monto) { toast('Ingresá un monto', 'error'); return; }
+  if (!fecha_mora) { toast('Ingresá la fecha de mora', 'error'); return; }
+  await fetch(`/api/facturas/${id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ numero, monto, fecha_mora, descripcion })
+  });
+  ['f-num','f-monto','f-fecha','f-desc'].forEach(p => document.getElementById(`${p}-${id}`).value = '');
+  await cargarFacturas(id);
+  await cargarClientes();
+  toast('Factura agregada ✓', 'success');
+}
+
+async function eliminarFactura(cid, fid) {
+  if (!confirm('¿Eliminar esta factura?')) return;
+  await fetch(`/api/facturas/${cid}/${fid}`, { method: 'DELETE' });
+  await cargarFacturas(cid);
+  await cargarClientes();
+  toast('Factura eliminada', '');
+}
+
+// ---- TASA BNA ----
+async function cargarTasa() {
+  const res = await fetch('/api/config');
+  const cfg = await res.json();
+  document.getElementById('tasa-input').value = cfg.tasa_bna;
+  document.getElementById('tasa-info').textContent = `Tasa diaria: ${(cfg.tasa_bna / 365).toFixed(4)}%`;
+}
+
+async function guardarTasa() {
+  const tasa = parseFloat(document.getElementById('tasa-input').value);
+  if (!tasa || tasa <= 0) { toast('Ingresá una tasa válida', 'error'); return; }
+  await fetch('/api/config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tasa_bna: tasa })
+  });
+  document.getElementById('tasa-info').textContent = `Tasa diaria: ${(tasa / 365).toFixed(4)}%`;
+  await cargarClientes();
+  toast(`Tasa actualizada a ${tasa}% anual ✓`, 'success');
 }
 
 async function cargarHistorial(id) {
@@ -892,6 +1096,7 @@ document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) cerrarModal();
 });
 cargarClientes();
+cargarTasa();
 </script>
 </body>
 </html>
