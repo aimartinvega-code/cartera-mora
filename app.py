@@ -5,7 +5,7 @@ from functools import wraps
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import requests
 
@@ -458,6 +458,114 @@ def exportar_pdf_cliente(cid):
     nombre = cliente.get('razon_social', 'cliente').replace(' ', '_').lower()
     return send_file(buf, mimetype='application/pdf', as_attachment=True,
                      download_name=f'reporte_{nombre}_{datetime.now().strftime("%Y%m%d")}.pdf')
+
+@app.route('/exportar/carta/<int:cid>')
+@login_required
+def exportar_carta(cid):
+    data = load_data()
+    tasa = data.get('tasa_bna', 60.0)
+    cliente = next((c for c in data['clientes'] if c['id'] == cid), None)
+    if not cliente:
+        return 'Cliente no encontrado', 404
+
+    facturas = data.get('facturas', {}).get(str(cid), [])
+    hoy = datetime.now()
+    lugar_fecha = f"Los Nogales, {hoy.strftime('%B de %Y').replace('January','enero').replace('February','febrero').replace('March','marzo').replace('April','abril').replace('May','mayo').replace('June','junio').replace('July','julio').replace('August','agosto').replace('September','septiembre').replace('October','octubre').replace('November','noviembre').replace('December','diciembre')}."
+
+    # Calcular totales
+    mo_total = sum(f.get('monto', 0) or 0 for f in facturas)
+    int_total = sum(calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa) for f in facturas)
+    tot_total = mo_total + int_total
+
+    # Lista de facturas para el texto
+    nums_facturas = [f.get('numero', '') for f in facturas if f.get('numero', '')]
+    if nums_facturas:
+        if len(nums_facturas) == 1:
+            ref_facturas = f"la factura Nº {nums_facturas[0]}"
+        else:
+            ref_facturas = f"las facturas Nº {', '.join(nums_facturas[:-1])} y Nº {nums_facturas[-1]}"
+    else:
+        ref_facturas = "las facturas impagas"
+
+    razon_social = cliente.get('razon_social', '')
+    cuit_cliente = cliente.get('cuit', '')
+    domicilio_cliente = cliente.get('domicilio', '')
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=2.5*cm, rightMargin=2.5*cm,
+                            topMargin=2.5*cm, bottomMargin=2.5*cm)
+
+    def fmt(v): return f"$ {v:,.0f}".replace(',', '.')
+
+    bold = ParagraphStyle('bold', fontSize=10, fontName='Helvetica-Bold', leading=14)
+    normal = ParagraphStyle('normal', fontSize=10, fontName='Helvetica', leading=14)
+    center = ParagraphStyle('center', fontSize=10, fontName='Helvetica', leading=14, alignment=1)
+    bold_center = ParagraphStyle('bold_center', fontSize=10, fontName='Helvetica-Bold', leading=14, alignment=1)
+    justified = ParagraphStyle('justified', fontSize=10, fontName='Helvetica', leading=16, alignment=4, spaceAfter=8)
+
+    elements = []
+
+    # Cabecera tipo carta documento — dos columnas: remitente | destinatario
+    cab_data = [
+        [Paragraph('<b>LUBRE S.R.L</b>', bold), Paragraph(f'<b>{razon_social}</b>', bold)],
+        [Paragraph('<b>LUBRE S.R.L.</b>', bold), Paragraph(f'<b>{razon_social}</b>', bold)],
+        [Paragraph('Méjico 778', normal), Paragraph('LOS NOGALES', normal)],
+        [Paragraph('LOS NOGALES', normal), Paragraph('RUTA NACIONAL Nº 9 KM 1306', normal)],
+        [Paragraph('RUTA NACIONAL Nº 9 KM 1306', normal), Paragraph('AV. CONSTITUCIÓN 2800 SOLAR DE TAFÍ', normal)],
+        [Paragraph('AV. CONSTITUCIÓN 2800 SOLAR DE TAFÍ', normal), Paragraph('', normal)],
+        [Paragraph('4101', normal), Paragraph('4103', normal)],
+        [Paragraph('TUCUMÁN', normal), Paragraph('TAFÍ VIEJO – TUCUMÁN', normal)],
+    ]
+
+    t_cab = Table(cab_data, colWidths=[8*cm, 8*cm])
+    t_cab.setStyle(TableStyle([
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+        ('LINEAFTER', (0, 0), (0, -1), 0.5, colors.HexColor('#cbd5e1')),
+        ('LEFTPADDING', (1, 0), (1, -1), 12),
+    ]))
+    elements.append(t_cab)
+    elements.append(Spacer(1, 0.5*cm))
+    elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#cbd5e1')))
+    elements.append(Spacer(1, 0.4*cm))
+
+    # Lugar y fecha
+    elements.append(Paragraph(f'<b>{lugar_fecha}</b>', bold))
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Cuerpo de la carta
+    cuit_txt = f", CUIT {cuit_cliente}," if cuit_cliente else ","
+    monto_txt = f" por un monto total de {fmt(tot_total)} (capital {fmt(mo_total)} más intereses {fmt(int_total)})" if tot_total else ""
+
+    cuerpo = (
+        f"<b>MARTÍN VEGA</b>, abogado de la matrícula, en mi carácter de apoderado legal de la firma "
+        f"<b>LUBRE S.R.L.</b> CUIT Nº 30-71005185-9, conforme mandato otorgado mediante escritura pública "
+        f"Nº 770 de fecha 26/09/2019, pasada ante la Escribanía Nicolás Federico Odstrcil, adscripto al "
+        f"Registro Notarial Nº 51, me dirijo a Ud. <b>{razon_social}</b>{cuit_txt} en razón de no haber "
+        f"cancelado la totalidad de la deuda que tiene con mi mandante, emergente de {ref_facturas}{monto_txt}. "
+        f"Lo íntimo, en un plazo de 72 hs, al pago de las mismas, con más sus intereses, bajo apercibimiento "
+        f"de iniciar acción judicial que corresponde en vuestra contra. Pongo en su conocimiento que la "
+        f"cancelación deberá hacerla en el domicilio de LUBRE S.R.L., Ruta Nacional Nº 9, KM 1306, "
+        f"en el horario de 08:00 a 17:00 hs, Los Nogales, Teléfono Celular (381) 156069919. "
+        f"<b>Queda Ud. debidamente intimado y notificado.</b>"
+        + "—" * 80
+    )
+    elements.append(Paragraph(cuerpo, justified))
+    elements.append(Spacer(1, 1.5*cm))
+
+    # Firma
+    elements.append(Paragraph("_______________________________", center))
+    elements.append(Paragraph("<b>MARTÍN VEGA</b>", bold_center))
+    elements.append(Paragraph("Abogado – Apoderado LUBRE S.R.L.", center))
+
+    doc.build(elements)
+    buf.seek(0)
+    nombre = razon_social.replace(' ', '_').lower()
+    return send_file(buf, mimetype='application/pdf', as_attachment=True,
+                     download_name=f'carta_documento_{nombre}_{hoy.strftime("%Y%m%d")}.pdf')
 
 @app.route('/exportar/pdf')
 @login_required

@@ -529,6 +529,8 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
   <div class="modal">
     <h2>Nuevo Cliente</h2>
     <div class="form-row"><label>Razón Social *</label><input id="m-razon" placeholder="Nombre o razón social"></div>
+    <div class="form-row"><label>CUIT</label><input id="m-cuit" placeholder="XX-XXXXXXXX-X"></div>
+    <div class="form-row"><label>Domicilio</label><input id="m-domicilio" placeholder="Calle, número, ciudad"></div>
     <div class="form-row"><label>Monto Original (ARS)</label><input id="m-monto" type="number" placeholder="0"></div>
     <div class="form-row"><label>Estado</label>
       <select id="m-estado">
@@ -605,6 +607,7 @@ function renderTabla(lista) {
         <div class="row-actions">
           <button class="btn-icon expand" onclick="toggleHistorial(${c.id})" title="Facturas y gestiones">📝</button>
           <button class="btn-icon" style="background:#e0f2fe;color:#0369a1" onclick="exportarPDFCliente(${c.id})" title="Exportar PDF">📄</button>
+          <button class="btn-icon" style="background:#fef3c7;color:#92400e" onclick="exportarCarta(${c.id})" title="Carta Documento">✉️</button>
           <button class="btn-icon delete" onclick="eliminarCliente(${c.id})" title="Eliminar">🗑</button>
         </div>
       </td>
@@ -807,6 +810,10 @@ function exportarPDFCliente(id) {
   window.open(`/exportar/pdf/cliente/${id}`, '_blank');
 }
 
+function exportarCarta(id) {
+  window.open(`/exportar/carta/${id}`, '_blank');
+}
+
 // ---- TASA BNA ----
 async function cargarTasa() {
   const res = await fetch('/api/config');
@@ -900,6 +907,8 @@ async function guardarNuevo() {
   if (!razon) { toast('Ingresá una razón social', 'error'); return; }
   const nuevo = {
     razon_social: razon,
+    cuit: document.getElementById('m-cuit').value.trim(),
+    domicilio: document.getElementById('m-domicilio').value.trim(),
     monto_original: parseFloat(document.getElementById('m-monto').value) || 0,
     intereses: 0,
     estado: document.getElementById('m-estado').value,
@@ -915,7 +924,7 @@ async function guardarNuevo() {
   clientes.push(c);
   renderTabla(filtrarActual());
   cerrarModal();
-  ['m-razon','m-monto','m-obs'].forEach(id => document.getElementById(id).value = '');
+  ['m-razon','m-cuit','m-domicilio','m-monto','m-obs'].forEach(id => document.getElementById(id).value = '');
   toast('Cliente agregado ✓', 'success');
 }
 
