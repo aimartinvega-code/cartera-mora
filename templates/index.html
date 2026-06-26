@@ -756,6 +756,13 @@ async function guardarDato(id, campo, valor) {
   await updateCliente(id, { [campo]: valor });
 }
 
+function switchTab(id, tab, el) {
+  document.querySelectorAll(`#hist-row-${id} .expand-tab`).forEach(t => t.classList.remove('active'));
+  document.querySelectorAll(`#hist-row-${id} .expand-section`).forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(`sec-${tab}-${id}`).classList.add('active');
+}
+
 // ---- HISTORIAL ----
 async function toggleHistorial(id) {
   const row = document.getElementById(`hist-row-${id}`);
@@ -764,6 +771,8 @@ async function toggleHistorial(id) {
     await cargarHistorial(id);
   }
 }
+
+function switchTab(id, tab, el) {
   document.querySelectorAll(`#hist-row-${id} .expand-tab`).forEach(t => t.classList.remove('active'));
   document.querySelectorAll(`#hist-row-${id} .expand-section`).forEach(s => s.classList.remove('active'));
   el.classList.add('active');
