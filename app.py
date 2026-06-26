@@ -510,10 +510,15 @@ def exportar_carta(cid):
         run.font.bold = bold
 
     # Cabecera — tabla dos columnas
-    tabla_cab = doc.add_table(rows=8, cols=2)
+    domicilio_cliente = cliente.get('domicilio', '')
+    localidad_cliente = cliente.get('localidad', '')
+    cp_cliente = cliente.get('cp', '')
+    provincia_cliente = cliente.get('provincia', '')
+
+    tabla_cab = doc.add_table(rows=5, cols=2)
     tabla_cab.style = 'Table Grid'
-    cab_izq = ['LUBRE S.R.L', 'LUBRE S.R.L.', 'Méjico 778', 'LOS NOGALES', 'RUTA NACIONAL Nº 9 KM 1306', 'AV. CONSTITUCIÓN 2800 SOLAR DE TAFÍ', '4101', 'TUCUMÁN']
-    cab_der = [razon_social, razon_social, 'LOS NOGALES', 'RUTA NACIONAL Nº 9 KM 1306', 'AV. CONSTITUCIÓN 2800 SOLAR DE TAFÍ', '', '4103', 'TAFÍ VIEJO – TUCUMÁN']
+    cab_izq = ['LUBRE S.R.L.', 'RUTA NACIONAL Nº 9 KM 1306', 'LOS NOGALES', '4101', 'TUCUMÁN']
+    cab_der = [razon_social, domicilio_cliente or '', localidad_cliente or '', cp_cliente or '', provincia_cliente or '']
 
     for i, (izq, der) in enumerate(zip(cab_izq, cab_der)):
         fila = tabla_cab.rows[i]
@@ -550,6 +555,7 @@ def exportar_carta(cid):
 
     # Cuerpo
     cuit_txt = f", CUIT {cuit_cliente}," if cuit_cliente else ","
+    dom_txt = f" con domicilio en {domicilio_cliente}," if domicilio_cliente else ","
     monto_txt = f" por un monto total de {fmt(tot_total)} (capital {fmt(mo_total)} más intereses {fmt(int_total)})" if tot_total else ""
 
     p_cuerpo = doc.add_paragraph()
@@ -565,7 +571,7 @@ def exportar_carta(cid):
     add_run(p_cuerpo, 'LUBRE S.R.L.', bold=True)
     add_run(p_cuerpo, ' CUIT Nº 30-71005185-9, conforme mandato otorgado mediante escritura pública Nº 770 de fecha 26/09/2019, pasada ante la Escribanía Nicolás Federico Odstrcil, adscripto al Registro Notarial Nº 51, me dirijo a Ud. ')
     add_run(p_cuerpo, razon_social, bold=True)
-    add_run(p_cuerpo, f'{cuit_txt} en razón de no haber cancelado la totalidad de la deuda que tiene con mi mandante, emergente de {ref_facturas}{monto_txt}. Lo íntimo, en un plazo de 72 hs, al pago de las mismas, con más sus intereses, bajo apercibimiento de iniciar acción judicial que corresponde en vuestra contra. Pongo en su conocimiento que la cancelación deberá hacerla en el domicilio de LUBRE S.R.L., Ruta Nacional Nº 9, KM 1306, en el horario de 08:00 a 17:00 hs, Los Nogales, Teléfono Celular (381) 156069919. ')
+    add_run(p_cuerpo, f'{cuit_txt}{dom_txt} en razón de no haber cancelado la totalidad de la deuda que tiene con mi mandante, emergente de {ref_facturas}{monto_txt}. Lo íntimo, en un plazo de 72 hs, al pago de las mismas, con más sus intereses, bajo apercibimiento de iniciar acción judicial que corresponde en vuestra contra. Pongo en su conocimiento que la cancelación deberá hacerla en el domicilio de LUBRE S.R.L., Ruta Nacional Nº 9, KM 1306, en el horario de 08:00 a 17:00 hs, Los Nogales, Teléfono Celular (381) 156069919. ')
     add_run(p_cuerpo, 'Queda Ud. debidamente intimado y notificado.', bold=True)
     add_run(p_cuerpo, '—' * 60)
 
