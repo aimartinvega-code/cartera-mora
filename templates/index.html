@@ -490,6 +490,8 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
         <option>Incobrable</option>
       </select>
       <button class="btn-add" onclick="abrirModal()">＋ Nuevo cliente</button>
+      <button class="btn-add" style="background:#16a34a" onclick="document.getElementById('import-excel').click()">📤 Importar Excel</button>
+      <input type="file" id="import-excel" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(this)">
     </div>
 
     <div class="table-wrap">
@@ -679,6 +681,16 @@ function renderTabla(lista) {
           <div id="facturas-list-${c.id}">
             <span class="hist-empty">Cargando facturas...</span>
           </div>
+          <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+            <div style="font-size:0.78rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.5rem">📎 Archivos adjuntos</div>
+            <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem">
+              <label class="btn-hist" style="cursor:pointer;font-size:0.78rem">
+                ＋ Adjuntar archivo
+                <input type="file" accept=".pdf,.doc,.docx,.jpg,.png" style="display:none" onchange="subirArchivo(${c.id}, this)">
+              </label>
+            </div>
+            <div id="archivos-list-${c.id}"><span class="hist-empty">Sin archivos adjuntos.</span></div>
+          </div>
         </div>
 
         <!-- GESTIONES -->
@@ -751,6 +763,70 @@ async function updateCliente(id, updates) {
   toast('Guardado ✓', 'success');
 }
 
+// ---- ARCHIVOS ----
+async function cargarArchivos(id) {
+  const res = await fetch(`/api/archivos/${id}`);
+  const archivos = await res.json();
+  renderArchivos(id, archivos);
+}
+
+function renderArchivos(id, archivos) {
+  const container = document.getElementById(`archivos-list-${id}`);
+  if (!archivos.length) {
+    container.innerHTML = '<span class="hist-empty">Sin archivos adjuntos.</span>';
+    return;
+  }
+  container.innerHTML = archivos.map(a => `
+    <div class="hist-item" style="justify-content:space-between">
+      <span>📄 <a href="/api/archivos/${id}/${encodeURIComponent(a.nombre)}" target="_blank" style="color:var(--navy)">${a.nombre}</a></span>
+      <span style="font-size:0.75rem;color:var(--slate)">${a.fecha}</span>
+      <button class="btn-icon delete" onclick="eliminarArchivo(${id}, '${a.nombre}')" title="Eliminar">🗑</button>
+    </div>
+  `).join('');
+}
+
+async function subirArchivo(id, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  toast('Subiendo archivo...', '');
+  const res = await fetch(`/api/archivos/${id}`, { method: 'POST', body: formData });
+  const data = await res.json();
+  if (data.ok) {
+    await cargarArchivos(id);
+    toast('Archivo adjuntado ✓', 'success');
+  } else {
+    toast('Error al subir', 'error');
+  }
+  input.value = '';
+}
+
+async function eliminarArchivo(id, nombre) {
+  if (!confirm(`¿Eliminar ${nombre}?`)) return;
+  await fetch(`/api/archivos/${id}/${encodeURIComponent(nombre)}`, { method: 'DELETE' });
+  await cargarArchivos(id);
+  toast('Archivo eliminado', '');
+}
+
+// ---- IMPORTAR EXCEL ----
+async function importarExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  toast('Importando clientes...', '');
+  const res = await fetch('/api/importar', { method: 'POST', body: formData });
+  const data = await res.json();
+  if (data.ok) {
+    await cargarClientes();
+    toast(`✓ ${data.agregados} clientes importados (total: ${data.total})`, 'success');
+  } else {
+    toast('Error al importar', 'error');
+  }
+  input.value = '';
+}
+
 // ---- DATOS CLIENTE ----
 async function guardarDato(id, campo, valor) {
   await updateCliente(id, { [campo]: valor });
@@ -768,6 +844,7 @@ async function toggleHistorial(id) {
   const row = document.getElementById(`hist-row-${id}`);
   if (row.classList.toggle('open')) {
     await cargarFacturas(id);
+    await cargarArchivos(id);
     await cargarHistorial(id);
   }
 }
