@@ -358,6 +358,20 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
 }
 .grafico-card canvas { max-height: 280px; }
 
+/* DATOS CLIENTE */
+.datos-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; padding: 0.25rem 0 0.5rem; }
+.dato-row { display: flex; flex-direction: column; gap: 0.25rem; }
+.dato-row label { font-size: 0.75rem; font-weight: 700; color: var(--slate); text-transform: uppercase; letter-spacing: 0.3px; }
+.dato-row input {
+  padding: 0.45rem 0.65rem;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  outline: none;
+  background: #fff;
+}
+.dato-row input:focus { border-color: var(--navy); }
+
 /* FACTURAS */
 .expand-tabs { display: flex; gap: 0; border-bottom: 1.5px solid var(--border); margin-bottom: 0.75rem; }
 .expand-tab {
@@ -485,7 +499,6 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
             <th>N°</th>
             <th>Cliente / Razón Social</th>
             <th>CUIT / DNI</th>
-            <th>Domicilio</th>
             <th>Monto Original</th>
             <th>Intereses</th>
             <th>Total Adeudado</th>
@@ -532,7 +545,10 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
     <h2>Nuevo Cliente</h2>
     <div class="form-row"><label>Razón Social *</label><input id="m-razon" placeholder="Nombre o razón social"></div>
     <div class="form-row"><label>CUIT</label><input id="m-cuit" placeholder="XX-XXXXXXXX-X"></div>
-    <div class="form-row"><label>Domicilio</label><input id="m-domicilio" placeholder="Calle, número, ciudad"></div>
+    <div class="form-row"><label>Domicilio</label><input id="m-domicilio" placeholder="Calle y número"></div>
+    <div class="form-row"><label>Localidad</label><input id="m-localidad" placeholder="Localidad"></div>
+    <div class="form-row"><label>CP</label><input id="m-cp" placeholder="Código postal"></div>
+    <div class="form-row"><label>Provincia</label><input id="m-provincia" placeholder="Provincia"></div>
     <div class="form-row"><label>Monto Original (ARS)</label><input id="m-monto" type="number" placeholder="0"></div>
     <div class="form-row"><label>Estado</label>
       <select id="m-estado">
@@ -599,7 +615,6 @@ function renderTabla(lista) {
       <td>${i + 1}</td>
       <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'razon_social', 'text')">${c.razon_social || ''}</span></td>
       <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'cuit', 'text')">${c.cuit || '—'}</span></td>
-      <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'domicilio', 'text')">${c.domicilio || '—'}</span></td>
       <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'monto_original', 'number')">${fmt(mo)}</span></td>
       <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'intereses', 'number')">${fmt(int_)}</span></td>
       <td class="monto">${fmt(total)}</td>
@@ -623,10 +638,33 @@ function renderTabla(lista) {
     trH.classList.add('historial-row');
     trH.id = `hist-row-${c.id}`;
     trH.innerHTML = `
-      <td colspan="12" class="historial-cell">
+      <td colspan="11" class="historial-cell">
         <div class="expand-tabs">
-          <div class="expand-tab active" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
+          <div class="expand-tab active" onclick="switchTab(${c.id}, 'datos', this)">👤 Datos</div>
+          <div class="expand-tab" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'gestiones', this)">📝 Gestiones</div>
+        </div>
+
+        <!-- DATOS -->
+        <div class="expand-section active" id="sec-datos-${c.id}">
+          <div class="datos-form">
+            <div class="dato-row">
+              <label>Domicilio</label>
+              <input id="d-dom-${c.id}" value="${c.domicilio || ''}" placeholder="Calle y número" onblur="guardarDato(${c.id}, 'domicilio', this.value)">
+            </div>
+            <div class="dato-row">
+              <label>Localidad</label>
+              <input id="d-loc-${c.id}" value="${c.localidad || ''}" placeholder="Localidad" onblur="guardarDato(${c.id}, 'localidad', this.value)">
+            </div>
+            <div class="dato-row">
+              <label>CP</label>
+              <input id="d-cp-${c.id}" value="${c.cp || ''}" placeholder="Código postal" onblur="guardarDato(${c.id}, 'cp', this.value)">
+            </div>
+            <div class="dato-row">
+              <label>Provincia</label>
+              <input id="d-prov-${c.id}" value="${c.provincia || ''}" placeholder="Provincia" onblur="guardarDato(${c.id}, 'provincia', this.value)">
+            </div>
+          </div>
         </div>
 
         <!-- FACTURAS -->
@@ -713,6 +751,11 @@ async function updateCliente(id, updates) {
   toast('Guardado ✓', 'success');
 }
 
+// ---- DATOS CLIENTE ----
+async function guardarDato(id, campo, valor) {
+  await updateCliente(id, { [campo]: valor });
+}
+
 // ---- HISTORIAL ----
 async function toggleHistorial(id) {
   const row = document.getElementById(`hist-row-${id}`);
@@ -721,8 +764,6 @@ async function toggleHistorial(id) {
     await cargarHistorial(id);
   }
 }
-
-function switchTab(id, tab, el) {
   document.querySelectorAll(`#hist-row-${id} .expand-tab`).forEach(t => t.classList.remove('active'));
   document.querySelectorAll(`#hist-row-${id} .expand-section`).forEach(s => s.classList.remove('active'));
   el.classList.add('active');
@@ -913,6 +954,9 @@ async function guardarNuevo() {
     razon_social: razon,
     cuit: document.getElementById('m-cuit').value.trim(),
     domicilio: document.getElementById('m-domicilio').value.trim(),
+    localidad: document.getElementById('m-localidad').value.trim(),
+    cp: document.getElementById('m-cp').value.trim(),
+    provincia: document.getElementById('m-provincia').value.trim(),
     monto_original: parseFloat(document.getElementById('m-monto').value) || 0,
     intereses: 0,
     estado: document.getElementById('m-estado').value,
@@ -928,7 +972,7 @@ async function guardarNuevo() {
   clientes.push(c);
   renderTabla(filtrarActual());
   cerrarModal();
-  ['m-razon','m-cuit','m-domicilio','m-monto','m-obs'].forEach(id => document.getElementById(id).value = '');
+  ['m-razon','m-cuit','m-domicilio','m-localidad','m-cp','m-provincia','m-monto','m-obs'].forEach(id => document.getElementById(id).value = '');
   toast('Cliente agregado ✓', 'success');
 }
 
