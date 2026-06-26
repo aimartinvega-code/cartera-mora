@@ -8,9 +8,11 @@ from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import requests
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY') or 'cartera-mora-secret-2024'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 # --- Config ---
 APP_PASSWORD = os.environ.get('APP_PASSWORD', 'admin123')
@@ -19,7 +21,9 @@ RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 EMAIL_FROM = os.environ.get('EMAIL_FROM', 'onboarding@resend.dev')
 
 DATA_DIR = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
+FILES_DIR = os.path.join(DATA_DIR, 'archivos')
 DATA_FILE = os.path.join(DATA_DIR, 'cartera.json')
+os.makedirs(FILES_DIR, exist_ok=True)
 
 ESTADOS = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'COBRADO/CERRADO']
 PERSPECTIVAS = ['Alta', 'Media', 'Baja', 'Incobrable', '']
@@ -458,6 +462,123 @@ def exportar_pdf_cliente(cid):
     nombre = cliente.get('razon_social', 'cliente').replace(' ', '_').lower()
     return send_file(buf, mimetype='application/pdf', as_attachment=True,
                      download_name=f'reporte_{nombre}_{datetime.now().strftime("%Y%m%d")}.pdf')
+
+# --- Archivos adjuntos ---
+@app.route('/api/archivos/<int:cid>', methods=['GET'])
+@login_required
+def get_archivos(cid):
+    carpeta = os.path.join(FILES_DIR, str(cid))
+    if not os.path.exists(carpeta):
+        return jsonify([])
+    archivos = []
+    for fname in os.listdir(carpeta):
+        fpath = os.path.join(carpeta, fname)
+        archivos.append({
+            'nombre': fname,
+            'size': os.path.getsize(fpath),
+            'fecha': datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%d/%m/%Y %H:%M')
+        })
+    archivos.sort(key=lambda x: x['fecha'], reverse=True)
+    return jsonify(archivos)
+
+@app.route('/api/archivos/<int:cid>', methods=['POST'])
+@login_required
+def upload_archivo(cid):
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file'}), 400
+    f = request.files['file']
+    if not f.filename:
+        return jsonify({'error': 'No filename'}), 400
+    carpeta = os.path.join(FILES_DIR, str(cid))
+    os.makedirs(carpeta, exist_ok=True)
+    filename = secure_filename(f.filename)
+    f.save(os.path.join(carpeta, filename))
+    return jsonify({'ok': True, 'nombre': filename})
+
+@app.route('/api/archivos/<int:cid>/<filename>', methods=['GET'])
+@login_required
+def download_archivo(cid, filename):
+    carpeta = os.path.join(FILES_DIR, str(cid))
+    return send_file(os.path.join(carpeta, secure_filename(filename)), as_attachment=True)
+
+@app.route('/api/archivos/<int:cid>/<filename>', methods=['DELETE'])
+@login_required
+def delete_archivo(cid, filename):
+    carpeta = os.path.join(FILES_DIR, str(cid))
+    fpath = os.path.join(carpeta, secure_filename(filename))
+    if os.path.exists(fpath):
+        os.remove(fpath)
+    return jsonify({'ok': True})
+
+# --- Importar desde Excel ---
+@app.route('/api/importar', methods=['POST'])
+@login_required
+def importar_excel():
+    try:
+        import openpyxl
+    except ImportError:
+        return jsonify({'error': 'openpyxl no instalado'}), 500
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file'}), 400
+    f = request.files['file']
+    data = load_data()
+    tasa = data.get('tasa_bna', 60.0)
+
+    wb = openpyxl.load_workbook(f, data_only=True)
+    ws = wb.active
+
+    # Leer encabezados de la primera fila
+    headers = []
+    for cell in ws[1]:
+        headers.append(str(cell.value or '').strip().lower())
+
+    def get_col(row, names):
+        for name in names:
+            for i, h in enumerate(headers):
+                if name in h:
+                    val = row[i].value
+                    return val
+        return None
+
+    agregados = 0
+    for row in ws.iter_rows(min_row=2):
+        razon = get_col(row, ['razon', 'razón', 'nombre', 'cliente'])
+        if not razon:
+            continue
+        razon = str(razon).strip()
+        if not razon:
+            continue
+
+        # Verificar si ya existe
+        existe = any(c['razon_social'].strip().upper() == razon.upper() for c in data['clientes'])
+        if existe:
+            continue
+
+        nuevo = {
+            'id': data['next_id'],
+            'razon_social': razon,
+            'cuit': str(get_col(row, ['cuit', 'dni']) or '').strip(),
+            'domicilio': str(get_col(row, ['domicilio', 'direccion', 'dirección']) or '').strip(),
+            'localidad': str(get_col(row, ['localidad']) or '').strip(),
+            'cp': str(get_col(row, ['cp', 'codigo postal', 'código']) or '').strip(),
+            'provincia': str(get_col(row, ['provincia']) or '').strip(),
+            'monto_original': float(get_col(row, ['monto', 'importe', 'deuda']) or 0),
+            'intereses': 0,
+            'estado': str(get_col(row, ['estado']) or 'PREJUDICIAL').strip().upper() or 'PREJUDICIAL',
+            'sub_estado': '',
+            'fecha_gestion': '',
+            'observaciones': str(get_col(row, ['observ', 'nota']) or '').strip(),
+            'perspectiva': str(get_col(row, ['perspectiva']) or '').strip(),
+        }
+        data['clientes'].append(nuevo)
+        data['historial'][str(nuevo['id'])] = []
+        data['facturas'][str(nuevo['id'])] = []
+        data['next_id'] += 1
+        agregados += 1
+
+    save_data(data)
+    return jsonify({'ok': True, 'agregados': agregados, 'total': len(data['clientes'])})
 
 @app.route('/exportar/carta/<int:cid>')
 @login_required
