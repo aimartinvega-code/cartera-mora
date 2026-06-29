@@ -586,12 +586,25 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
 <!-- MODAL OBSERVACIONES -->
 <div class="modal-overlay" id="obs-overlay">
   <div class="modal" style="max-width:520px">
-    <h2 id="obs-titulo" style="margin-bottom:0.5rem"></h2>
+    <h2 id="obs-titulo" style="margin-bottom:0.25rem"></h2>
     <p style="font-size:0.75rem;color:var(--slate);margin-bottom:1rem">Observaciones</p>
-    <textarea id="obs-texto" style="width:100%;min-height:140px;padding:0.75rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;line-height:1.6"></textarea>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="cerrarObservaciones()">Cerrar</button>
-      <button class="btn-save" onclick="guardarObservaciones()">Guardar</button>
+
+    <!-- MODO VISTA -->
+    <div id="obs-vista">
+      <div id="obs-texto-vista" style="min-height:80px;padding:0.75rem;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;line-height:1.6;white-space:pre-wrap;color:var(--text)"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="cerrarObservaciones()">Cerrar</button>
+        <button class="btn-save" onclick="activarEdicionObs()">✏️ Editar</button>
+      </div>
+    </div>
+
+    <!-- MODO EDICION -->
+    <div id="obs-edicion" style="display:none">
+      <textarea id="obs-texto" style="width:100%;min-height:140px;padding:0.75rem;border:1.5px solid var(--navy);border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;line-height:1.6"></textarea>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="cancelarEdicionObs()">Cancelar</button>
+        <button class="btn-save" onclick="guardarObservaciones()">💾 Guardar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1076,9 +1089,20 @@ let obsClienteId = null;
 function abrirObservaciones(id, nombre, texto) {
   obsClienteId = id;
   document.getElementById('obs-titulo').textContent = nombre;
+  document.getElementById('obs-texto-vista').textContent = texto || '(Sin observaciones)';
   document.getElementById('obs-texto').value = texto || '';
+  document.getElementById('obs-vista').style.display = 'block';
+  document.getElementById('obs-edicion').style.display = 'none';
   document.getElementById('obs-overlay').classList.add('open');
+}
+function activarEdicionObs() {
+  document.getElementById('obs-vista').style.display = 'none';
+  document.getElementById('obs-edicion').style.display = 'block';
   setTimeout(() => document.getElementById('obs-texto').focus(), 100);
+}
+function cancelarEdicionObs() {
+  document.getElementById('obs-vista').style.display = 'block';
+  document.getElementById('obs-edicion').style.display = 'none';
 }
 function cerrarObservaciones() {
   document.getElementById('obs-overlay').classList.remove('open');
@@ -1087,7 +1111,9 @@ function cerrarObservaciones() {
 async function guardarObservaciones() {
   const texto = document.getElementById('obs-texto').value.trim();
   await updateCliente(obsClienteId, { observaciones: texto });
-  cerrarObservaciones();
+  document.getElementById('obs-texto-vista').textContent = texto || '(Sin observaciones)';
+  cancelarEdicionObs();
+  toast('Observaciones guardadas ✓', 'success');
 }
 
 // ---- PDF CLIENTE ----
