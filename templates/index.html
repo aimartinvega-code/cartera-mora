@@ -492,6 +492,9 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
   <div class="header-actions">
     <span style="color:rgba(255,255,255,0.6);font-size:0.8rem">{{ username }} {% if role == 'admin' %}👑{% else %}👁{% endif %}</span>
     <a href="/exportar/pdf" class="btn-header">📄 Exportar PDF</a>
+    {% if role == 'admin' %}
+    <a href="/backup/descargar" class="btn-header">💾 Backup</a>
+    {% endif %}
     <a href="/logout" class="btn-header">Salir</a>
   </div>
 </div>
@@ -500,6 +503,9 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
   <div class="tab active" onclick="showPanel('clientes', this)">📋 Clientes</div>
   <div class="tab" onclick="showPanel('dashboard', this); loadDashboard()">📊 Resumen</div>
   <div class="tab" onclick="showPanel('graficos', this); loadGraficos()">📈 Gráficos</div>
+  {% if role == 'admin' %}
+  <div class="tab" onclick="showPanel('actividad', this); loadActividad()">🔒 Actividad</div>
+  {% endif %}
 </div>
 
 <div class="main">
@@ -580,6 +586,35 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
       <canvas id="chart-cantidad" style="max-height:200px"></canvas>
     </div>
   </div>
+
+  <!-- PANEL ACTIVIDAD -->
+  {% if role == 'admin' %}
+  <div class="panel" id="panel-actividad">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div>
+        <div style="font-size:1rem;font-weight:700;color:var(--navy)">🔒 Log de Actividad</div>
+        <div style="font-size:0.78rem;color:var(--slate)">Registro de acciones realizadas por los usuarios</div>
+      </div>
+      <button onclick="limpiarLog()" style="padding:0.4rem 0.9rem;background:#fee2e2;color:#dc2626;border:none;border-radius:7px;font-size:0.8rem;font-weight:600;cursor:pointer">🗑 Limpiar log</button>
+    </div>
+    <div style="background:var(--surface);border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+      <table style="width:100%;border-collapse:collapse">
+        <thead style="background:var(--navy);color:#fff">
+          <tr>
+            <th style="padding:0.6rem 0.75rem;text-align:left;font-size:0.78rem">Fecha y Hora</th>
+            <th style="padding:0.6rem 0.75rem;text-align:left;font-size:0.78rem">Usuario</th>
+            <th style="padding:0.6rem 0.75rem;text-align:left;font-size:0.78rem">Acción</th>
+            <th style="padding:0.6rem 0.75rem;text-align:left;font-size:0.78rem">Cliente</th>
+            <th style="padding:0.6rem 0.75rem;text-align:left;font-size:0.78rem">Detalle</th>
+          </tr>
+        </thead>
+        <tbody id="log-tbody">
+          <tr><td colspan="5" style="padding:1rem;text-align:center;color:var(--muted)">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
 
 </div>
 
@@ -1394,6 +1429,41 @@ async function loadDashboard() {
       </div>
     </div>
   `;
+}
+
+// ---- ACTIVIDAD ----
+async function loadActividad() {
+  const res = await fetch('/api/log');
+  const logs = await res.json();
+  const tbody = document.getElementById('log-tbody');
+  if (!logs.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:1rem;text-align:center;color:var(--muted)">Sin actividad registrada.</td></tr>';
+    return;
+  }
+  const colores = {
+    'Cliente creado': '#16a34a',
+    'Cliente eliminado': '#dc2626',
+    'Cambio de estado': '#7c3aed',
+    'Backup descargado': '#0891b2',
+  };
+  tbody.innerHTML = logs.map((l, i) => `
+    <tr style="border-bottom:1px solid var(--border);background:${i % 2 === 0 ? '#fff' : '#f8fafc'}">
+      <td style="padding:0.5rem 0.75rem;font-size:0.78rem;color:var(--slate);white-space:nowrap">${l.fecha}</td>
+      <td style="padding:0.5rem 0.75rem;font-size:0.8rem;font-weight:600">${l.usuario}</td>
+      <td style="padding:0.5rem 0.75rem">
+        <span style="font-size:0.78rem;font-weight:700;color:${colores[l.accion] || 'var(--navy)'}">${l.accion}</span>
+      </td>
+      <td style="padding:0.5rem 0.75rem;font-size:0.8rem">${l.cliente || '—'}</td>
+      <td style="padding:0.5rem 0.75rem;font-size:0.78rem;color:var(--slate)">${l.detalle || '—'}</td>
+    </tr>
+  `).join('');
+}
+
+async function limpiarLog() {
+  if (!confirm('¿Eliminar todo el log de actividad?')) return;
+  await fetch('/api/log', { method: 'DELETE' });
+  loadActividad();
+  toast('Log limpiado ✓', 'success');
 }
 
 // ---- TOAST ----
