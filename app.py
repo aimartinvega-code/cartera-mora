@@ -69,6 +69,8 @@ def load_data():
                 data['tasa_bna'] = 60.0
             if 'facturas' not in data:
                 data['facturas'] = {}
+            if 'pagos' not in data:
+                data['pagos'] = {}
             return data
     return cargar_datos_iniciales()
 
@@ -93,7 +95,7 @@ def cargar_datos_iniciales():
         {"id": 13, "razon_social": "VISION EMPRESARIAL NOROESTE SRL", "monto_original": 27623401, "intereses": 0, "estado": "JUICIO", "sub_estado": "EJECUCION DE SENTENCIA", "fecha_gestion": "", "observaciones": "", "perspectiva": "Media"},
         {"id": 14, "razon_social": "NIEVAS NELSON", "monto_original": 3827682, "intereses": 0, "estado": "JUICIO", "sub_estado": "SENTENCIA", "fecha_gestion": "", "observaciones": "", "perspectiva": "Media"},
     ]
-    data = {"clientes": clientes, "historial": {}, "facturas": {}, "tasa_bna": 60.0, "next_id": 15}
+    data = {"clientes": clientes, "historial": {}, "facturas": {}, "pagos": {}, "tasa_bna": 60.0, "next_id": 15}
     save_data(data)
     return data
 
@@ -324,7 +326,6 @@ def delete_factura(cid, fid):
     tasa = data.get('tasa_bna', 60.0)
     facturas = data.get('facturas', {}).get(str(cid), [])
     data['facturas'][str(cid)] = [f for f in facturas if f.get('id') != fid]
-    # Recalcular totales
     facturas_new = data['facturas'][str(cid)]
     mo, int_ = calcular_totales_cliente({'facturas': facturas_new}, tasa)
     for c in data['clientes']:
@@ -332,6 +333,52 @@ def delete_factura(cid, fid):
             c['monto_original'] = mo
             c['intereses'] = int_
             break
+    save_data(data)
+    return jsonify({'ok': True})
+
+# --- Pagos ---
+@app.route('/api/pagos/<int:cid>', methods=['GET'])
+@login_required
+def get_pagos(cid):
+    data = load_data()
+    return jsonify(data.get('pagos', {}).get(str(cid), []))
+
+@app.route('/api/pagos/<int:cid>', methods=['POST'])
+@login_required
+def add_pago(cid):
+    data = load_data()
+    tasa = data.get('tasa_bna', 60.0)
+    pago = request.json
+    pago['id'] = datetime.now().strftime('%Y%m%d%H%M%S%f')
+    pago['fecha'] = datetime.now().strftime('%d/%m/%Y')
+    pago.setdefault('monto', 0)
+    pago.setdefault('tipo', 'parcial')  # 'parcial' o 'total'
+    pago.setdefault('descuenta_de', 'total')  # 'capital', 'intereses', 'total'
+    pago.setdefault('observacion', '')
+
+    if 'pagos' not in data:
+        data['pagos'] = {}
+    if str(cid) not in data['pagos']:
+        data['pagos'][str(cid)] = []
+    data['pagos'][str(cid)].insert(0, pago)
+
+    # Si es pago total → marcar como COBRADO/CERRADO
+    if pago['tipo'] == 'total':
+        for c in data['clientes']:
+            if c['id'] == cid:
+                c['estado'] = 'COBRADO/CERRADO'
+                c['fecha_cobro'] = datetime.now().strftime('%d/%m/%Y')
+                break
+
+    save_data(data)
+    return jsonify(pago)
+
+@app.route('/api/pagos/<int:cid>/<pid>', methods=['DELETE'])
+@admin_required
+def delete_pago(cid, pid):
+    data = load_data()
+    pagos = data.get('pagos', {}).get(str(cid), [])
+    data.setdefault('pagos', {})[str(cid)] = [p for p in pagos if p.get('id') != pid]
     save_data(data)
     return jsonify({'ok': True})
 
