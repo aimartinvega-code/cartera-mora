@@ -611,15 +611,16 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
 
 <!-- MODAL NUEVO CLIENTE -->
 <div class="modal-overlay" id="modal-overlay">
-  <div class="modal">
+  <div class="modal" style="max-width:520px">
     <h2>Nuevo Cliente</h2>
+
+    <div style="font-size:0.78rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.6rem">Datos del cliente</div>
     <div class="form-row"><label>Razón Social *</label><input id="m-razon" placeholder="Nombre o razón social"></div>
-    <div class="form-row"><label>CUIT</label><input id="m-cuit" placeholder="XX-XXXXXXXX-X"></div>
+    <div class="form-row"><label>CUIT / DNI</label><input id="m-cuit" placeholder="XX-XXXXXXXX-X"></div>
     <div class="form-row"><label>Domicilio</label><input id="m-domicilio" placeholder="Calle y número"></div>
     <div class="form-row"><label>Localidad</label><input id="m-localidad" placeholder="Localidad"></div>
     <div class="form-row"><label>CP</label><input id="m-cp" placeholder="Código postal"></div>
     <div class="form-row"><label>Provincia</label><input id="m-provincia" placeholder="Provincia"></div>
-    <div class="form-row"><label>Monto Original (ARS)</label><input id="m-monto" type="number" placeholder="0"></div>
     <div class="form-row"><label>Estado</label>
       <select id="m-estado">
         <option>PREJUDICIAL</option><option>JUICIO</option><option>SENTENCIA</option>
@@ -633,6 +634,14 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
       </select>
     </div>
     <div class="form-row"><label>Observaciones</label><input id="m-obs" placeholder="Notas iniciales"></div>
+
+    <div style="border-top:1.5px solid var(--border);margin:1rem 0 0.75rem"></div>
+    <div style="font-size:0.78rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.6rem">Primera factura <span style="font-weight:400;text-transform:none;color:var(--muted)">(opcional)</span></div>
+    <div class="form-row"><label>N° Factura</label><input id="m-f-num" placeholder="Ej: 0001-00012345"></div>
+    <div class="form-row"><label>Monto (ARS) *</label><input id="m-f-monto" type="number" placeholder="0"></div>
+    <div class="form-row"><label>Fecha de mora *</label><input id="m-f-fecha" type="date"></div>
+    <div class="form-row"><label>Descripción</label><input id="m-f-desc" placeholder="Descripción de la factura"></div>
+
     <div class="modal-actions">
       <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
       <button class="btn-save" onclick="guardarNuevo()">Guardar</button>
@@ -1216,6 +1225,12 @@ function cerrarModal() { document.getElementById('modal-overlay').classList.remo
 async function guardarNuevo() {
   const razon = document.getElementById('m-razon').value.trim();
   if (!razon) { toast('Ingresá una razón social', 'error'); return; }
+
+  const fMonto = parseFloat(document.getElementById('m-f-monto').value) || 0;
+  const fFecha = document.getElementById('m-f-fecha').value;
+  const fNum = document.getElementById('m-f-num').value.trim();
+  const fDesc = document.getElementById('m-f-desc').value.trim();
+
   const nuevo = {
     razon_social: razon,
     cuit: document.getElementById('m-cuit').value.trim(),
@@ -1223,7 +1238,7 @@ async function guardarNuevo() {
     localidad: document.getElementById('m-localidad').value.trim(),
     cp: document.getElementById('m-cp').value.trim(),
     provincia: document.getElementById('m-provincia').value.trim(),
-    monto_original: parseFloat(document.getElementById('m-monto').value) || 0,
+    monto_original: 0,
     intereses: 0,
     estado: document.getElementById('m-estado').value,
     perspectiva: document.getElementById('m-perspectiva').value,
@@ -1235,10 +1250,22 @@ async function guardarNuevo() {
     body: JSON.stringify(nuevo)
   });
   const c = await res.json();
-  clientes.push(c);
-  renderTabla(filtrarActual());
+
+  // Si hay factura, cargarla
+  if (fMonto && fFecha) {
+    await fetch(`/api/facturas/${c.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ numero: fNum, monto: fMonto, fecha_mora: fFecha, descripcion: fDesc })
+    });
+  }
+
   cerrarModal();
-  ['m-razon','m-cuit','m-domicilio','m-localidad','m-cp','m-provincia','m-monto','m-obs'].forEach(id => document.getElementById(id).value = '');
+  ['m-razon','m-cuit','m-domicilio','m-localidad','m-cp','m-provincia','m-obs','m-f-num','m-f-monto','m-f-fecha','m-f-desc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  await cargarClientes();
   toast('Cliente agregado ✓', 'success');
 }
 
