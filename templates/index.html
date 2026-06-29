@@ -538,8 +538,7 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
 
 <div class="tabs">
   <div class="tab active" onclick="showPanel('clientes', this)">📋 Clientes</div>
-  <div class="tab" onclick="showPanel('dashboard', this); loadDashboard()">📊 Resumen</div>
-  <div class="tab" onclick="showPanel('graficos', this); loadGraficos()">📈 Gráficos</div>
+  <div class="tab" onclick="showPanel('dashboard', this); loadDashboard(); loadGraficos()">📊 Resumen</div>
 </div>
 
 <div class="main">
@@ -598,26 +597,25 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
     </div>
   </div>
 
-  <!-- PANEL DASHBOARD -->
+  <!-- PANEL DASHBOARD + GRAFICOS -->
   <div class="panel" id="panel-dashboard">
     <div id="dash-content">Cargando...</div>
-  </div>
-
-  <!-- PANEL GRAFICOS -->
-  <div class="panel" id="panel-graficos">
-    <div class="graficos-grid">
-      <div class="grafico-card">
-        <h3>Monto Original por Estado (ARS)</h3>
-        <canvas id="chart-barras"></canvas>
+    <div style="margin-top:1.5rem">
+      <h3 style="font-size:0.85rem;color:var(--slate);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1rem">Gráficos</h3>
+      <div class="graficos-grid">
+        <div class="grafico-card">
+          <h3>Monto Original por Estado (ARS)</h3>
+          <canvas id="chart-barras"></canvas>
+        </div>
+        <div class="grafico-card">
+          <h3>Perspectiva de Cobro</h3>
+          <canvas id="chart-torta"></canvas>
+        </div>
       </div>
-      <div class="grafico-card">
-        <h3>Perspectiva de Cobro</h3>
-        <canvas id="chart-torta"></canvas>
+      <div class="grafico-card" style="margin-bottom:1.25rem">
+        <h3>Cantidad de Clientes por Estado</h3>
+        <canvas id="chart-cantidad" style="max-height:200px"></canvas>
       </div>
-    </div>
-    <div class="grafico-card" style="margin-bottom:1.25rem">
-      <h3>Cantidad de Clientes por Estado</h3>
-      <canvas id="chart-cantidad" style="max-height:200px"></canvas>
     </div>
   </div>
 
