@@ -334,6 +334,33 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
 /* MONTO */
 .monto { font-variant-numeric: tabular-nums; }
 
+/* USER MENU */
+.user-menu { position: relative; }
+.user-menu-btn { font-weight: 600; }
+.user-dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  min-width: 200px;
+  z-index: 200;
+  overflow: hidden;
+}
+.user-dropdown.open { display: block; }
+.user-dropdown a {
+  display: block;
+  padding: 0.65rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  text-decoration: none;
+  transition: background 0.1s;
+}
+.user-dropdown a:hover { background: #f1f5f9; }
+.dropdown-divider { height: 1px; background: var(--border); margin: 0.25rem 0; }
+
 /* BOTON OBSERVACIONES */
 .btn-obs {
   padding: 0.25rem 0.6rem;
@@ -490,14 +517,22 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
     <span>⚖️</span> Cartera en Mora
   </div>
   <div class="header-actions">
-    <span style="color:rgba(255,255,255,0.6);font-size:0.8rem">{{ username }} {% if role == 'admin' %}👑{% else %}👁{% endif %}</span>
     <a href="https://login.justucuman.gov.ar/login" target="_blank" class="btn-header">⚖️ Poder Judicial</a>
     <a href="https://www.bcra.gob.ar/situacion-crediticia/" target="_blank" class="btn-header">🏦 BCRA</a>
     <a href="/exportar/pdf" class="btn-header">📄 Exportar PDF</a>
-    {% if role == 'admin' %}
-    <a href="/backup/descargar" class="btn-header">💾 Backup</a>
-    {% endif %}
-    <a href="/logout" class="btn-header">Salir</a>
+    <div class="user-menu" id="user-menu">
+      <button class="btn-header user-menu-btn" onclick="toggleUserMenu()">
+        {{ username }} {% if role == 'admin' %}👑{% else %}👁{% endif %} ▾
+      </button>
+      <div class="user-dropdown" id="user-dropdown">
+        {% if role == 'admin' %}
+        <a href="#" onclick="abrirActividad(); return false;">🔒 Actividad</a>
+        <a href="/backup/descargar">💾 Descargar Backup</a>
+        <div class="dropdown-divider"></div>
+        {% endif %}
+        <a href="/logout">🚪 Cerrar sesión</a>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -505,9 +540,6 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
   <div class="tab active" onclick="showPanel('clientes', this)">📋 Clientes</div>
   <div class="tab" onclick="showPanel('dashboard', this); loadDashboard()">📊 Resumen</div>
   <div class="tab" onclick="showPanel('graficos', this); loadGraficos()">📈 Gráficos</div>
-  {% if role == 'admin' %}
-  <div class="tab" onclick="showPanel('actividad', this); loadActividad()">🔒 Actividad</div>
-  {% endif %}
 </div>
 
 <div class="main">
@@ -1431,6 +1463,25 @@ async function loadDashboard() {
       </div>
     </div>
   `;
+}
+
+// ---- USER MENU ----
+function toggleUserMenu() {
+  document.getElementById('user-dropdown').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const menu = document.getElementById('user-menu');
+  if (menu && !menu.contains(e.target)) {
+    document.getElementById('user-dropdown').classList.remove('open');
+  }
+});
+
+function abrirActividad() {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-actividad').classList.add('active');
+  loadActividad();
+  toggleUserMenu();
 }
 
 // ---- ACTIVIDAD ----
