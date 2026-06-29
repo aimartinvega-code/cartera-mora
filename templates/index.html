@@ -491,7 +491,10 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
         <option>Incobrable</option>
       </select>
       <button class="btn-add" onclick="abrirModal()">＋ Nuevo cliente</button>
-      ${IS_ADMIN ? `<button class="btn-add" style="background:#16a34a" onclick="document.getElementById('import-excel').click()">📤 Importar Excel</button><input type="file" id="import-excel" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(this)">` : ''}
+      {% if role == 'admin' %}
+      <button class="btn-add" style="background:#16a34a" onclick="document.getElementById('import-excel').click()">📤 Importar Excel</button>
+      <input type="file" id="import-excel" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(this)">
+      {% endif %}
     </div>
 
     <div class="table-wrap">
