@@ -603,10 +603,18 @@ def importar_excel():
     wb = openpyxl.load_workbook(f, data_only=True)
     ws = wb.active
 
-    # Leer encabezados de la primera fila
+    # Detectar fila de encabezados — buscar la que tenga "razon social" o "cliente"
+    header_row = 1
     headers = []
-    for cell in ws[1]:
-        headers.append(str(cell.value or '').strip().lower())
+    for i, row in enumerate(ws.iter_rows(min_row=1, max_row=10), start=1):
+        vals = [str(cell.value or '').strip().lower().replace('\n', ' ') for cell in row]
+        if any('razón social' in v or 'razon social' in v or 'cliente' in v for v in vals):
+            header_row = i
+            headers = vals
+            break
+
+    if not headers:
+        return jsonify({'error': 'No se encontraron encabezados válidos'}), 400
 
     def get_col(row, names):
         for name in names:
@@ -617,8 +625,8 @@ def importar_excel():
         return None
 
     agregados = 0
-    for row in ws.iter_rows(min_row=2):
-        razon = get_col(row, ['razon', 'razón', 'nombre', 'cliente'])
+    for row in ws.iter_rows(min_row=header_row + 1):
+        razon = get_col(row, ['razón social', 'razon social', 'cliente / razón', 'cliente / razon', 'nombre', 'cliente'])
         if not razon:
             continue
         razon = str(razon).strip()
