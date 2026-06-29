@@ -960,13 +960,6 @@ async function toggleHistorial(id) {
   }
 }
 
-function switchTab(id, tab, el) {
-  document.querySelectorAll(`#hist-row-${id} .expand-tab`).forEach(t => t.classList.remove('active'));
-  document.querySelectorAll(`#hist-row-${id} .expand-section`).forEach(s => s.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById(`sec-${tab}-${id}`).classList.add('active');
-}
-
 // ---- FACTURAS ----
 async function cargarFacturas(id) {
   const res = await fetch(`/api/facturas/${id}`);
@@ -1181,45 +1174,117 @@ function showPanel(name, el) {
   el.classList.add('active');
 }
 
-// ---- DASHBOARD ----
+// ---- DASHBOARD EJECUTIVO ----
 async function loadDashboard() {
   const res = await fetch('/api/resumen');
   const r = await res.json();
+
   const totalClientes = clientes.length;
-  const totalMonto = clientes.reduce((s, c) => s + (c.monto_original || 0), 0);
-  const totalAdeudado = clientes.reduce((s, c) => s + (c.monto_original || 0) + (c.intereses || 0), 0);
+  const cobrados = clientes.filter(c => c.estado === 'COBRADO/CERRADO');
+  const activos = clientes.filter(c => c.estado !== 'COBRADO/CERRADO');
+  const totalAdeudado = activos.reduce((s, c) => s + (c.monto_original || 0) + (c.intereses || 0), 0);
+  const totalCobrado = cobrados.reduce((s, c) => s + (c.monto_original || 0), 0);
+  const totalCartera = totalAdeudado + totalCobrado;
+  const pctRecupero = totalCartera > 0 ? Math.round(totalCobrado / totalCartera * 100) : 0;
 
-  const colors = { PREJUDICIAL: '', JUICIO: 'juicio', SENTENCIA: 'sentencia', EJECUCION: 'ejecucion', 'COBRADO/CERRADO': 'cobrado', MEDIACION: 'mediacion' };
+  // Top 5 deudores
+  const top5 = [...activos].sort((a, b) => ((b.monto_original||0)+(b.intereses||0)) - ((a.monto_original||0)+(a.intereses||0))).slice(0, 5);
 
+  // Perspectiva
   const perspCount = { Alta: 0, Media: 0, Baja: 0, Incobrable: 0 };
-  clientes.forEach(c => { if (perspCount[c.perspectiva] !== undefined) perspCount[c.perspectiva]++; });
+  activos.forEach(c => { if (perspCount[c.perspectiva] !== undefined) perspCount[c.perspectiva]++; });
+  const perspMonto = { Alta: 0, Media: 0, Baja: 0, Incobrable: 0 };
+  activos.forEach(c => { if (perspMonto[c.perspectiva] !== undefined) perspMonto[c.perspectiva] += (c.monto_original||0)+(c.intereses||0); });
+
+  const coloresEstado = { PREJUDICIAL: '#ca8a04', JUICIO: '#dc2626', SENTENCIA: '#ea580c', EJECUCION: '#7c3aed', MEDIACION: '#0891b2', 'COBRADO/CERRADO': '#16a34a' };
+  const clasesEstado = { PREJUDICIAL: '', JUICIO: 'juicio', SENTENCIA: 'sentencia', EJECUCION: 'ejecucion', MEDIACION: 'mediacion', 'COBRADO/CERRADO': 'cobrado' };
 
   document.getElementById('dash-content').innerHTML = `
-    <div class="dash-total">
-      <div class="dash-total-item"><div class="dash-total-label">Total clientes</div><div class="dash-total-val">${totalClientes}</div></div>
-      <div class="dash-total-item"><div class="dash-total-label">Monto original total</div><div class="dash-total-val">${fmt(totalMonto)}</div></div>
-      <div class="dash-total-item"><div class="dash-total-label">Total adeudado</div><div class="dash-total-val">${fmt(totalAdeudado)}</div></div>
+
+    <!-- KPIs PRINCIPALES -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem">
+      <div style="background:var(--navy);color:#fff;border-radius:12px;padding:1.4rem 1.5rem;box-shadow:0 4px 16px rgba(26,46,74,0.25)">
+        <div style="font-size:0.72rem;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px">Total Adeudado</div>
+        <div style="font-size:1.6rem;font-weight:800;margin-top:0.3rem">${fmt(totalAdeudado)}</div>
+        <div style="font-size:0.75rem;opacity:0.6;margin-top:0.2rem">${activos.length} clientes activos</div>
+      </div>
+      <div style="background:#16a34a;color:#fff;border-radius:12px;padding:1.4rem 1.5rem;box-shadow:0 4px 16px rgba(22,163,74,0.25)">
+        <div style="font-size:0.72rem;opacity:0.8;text-transform:uppercase;letter-spacing:0.5px">Total Cobrado</div>
+        <div style="font-size:1.6rem;font-weight:800;margin-top:0.3rem">${fmt(totalCobrado)}</div>
+        <div style="font-size:0.75rem;opacity:0.8;margin-top:0.2rem">${cobrados.length} clientes cobrados</div>
+      </div>
+      <div style="background:#fff;border:2px solid var(--border);border-radius:12px;padding:1.4rem 1.5rem">
+        <div style="font-size:0.72rem;color:var(--slate);text-transform:uppercase;letter-spacing:0.5px">Tasa de Recupero</div>
+        <div style="font-size:1.6rem;font-weight:800;color:var(--navy);margin-top:0.3rem">${pctRecupero}%</div>
+        <div style="background:var(--border);border-radius:99px;height:6px;margin-top:0.5rem">
+          <div style="background:#16a34a;border-radius:99px;height:6px;width:${pctRecupero}%"></div>
+        </div>
+      </div>
+      <div style="background:#fff;border:2px solid var(--border);border-radius:12px;padding:1.4rem 1.5rem">
+        <div style="font-size:0.72rem;color:var(--slate);text-transform:uppercase;letter-spacing:0.5px">Total Clientes</div>
+        <div style="font-size:1.6rem;font-weight:800;color:var(--navy);margin-top:0.3rem">${totalClientes}</div>
+        <div style="font-size:0.75rem;color:var(--slate);margin-top:0.2rem">${activos.length} activos · ${cobrados.length} cobrados</div>
+      </div>
     </div>
 
-    <h3 style="font-size:0.85rem;color:var(--slate);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem;">Por Estado Procesal</h3>
-    <div class="dash-grid">
-      ${Object.entries(r).map(([estado, d]) => `
-        <div class="dash-card ${colors[estado] || ''}">
-          <div class="dash-card-label">${estado}</div>
-          <div class="dash-card-count">${d.cantidad}</div>
-          <div class="dash-card-monto">${fmt(d.monto_original)}</div>
-        </div>
-      `).join('')}
+    <!-- ESTADOS + TOP 5 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
+
+      <!-- Por estado -->
+      <div style="background:#fff;border-radius:10px;padding:1.3rem;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+        <div style="font-size:0.82rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1rem">Por Estado Procesal</div>
+        ${Object.entries(r).map(([estado, d]) => d.cantidad > 0 ? `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <div style="width:10px;height:10px;border-radius:50%;background:${coloresEstado[estado] || '#94a3b8'}"></div>
+              <span style="font-size:0.82rem;font-weight:600">${estado}</span>
+            </div>
+            <div style="text-align:right">
+              <span style="font-size:0.82rem;font-weight:700;color:var(--navy)">${d.cantidad}</span>
+              <span style="font-size:0.75rem;color:var(--slate);margin-left:0.5rem">${fmt(d.total_adeudado)}</span>
+            </div>
+          </div>
+        ` : '').join('')}
+      </div>
+
+      <!-- Top 5 deudores -->
+      <div style="background:#fff;border-radius:10px;padding:1.3rem;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+        <div style="font-size:0.82rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1rem">Top 5 Mayores Deudores</div>
+        ${top5.map((c, i) => {
+          const total = (c.monto_original||0) + (c.intereses||0);
+          const pct = totalAdeudado > 0 ? Math.round(total / totalAdeudado * 100) : 0;
+          return `
+          <div style="margin-bottom:0.75rem">
+            <div style="display:flex;justify-content:space-between;margin-bottom:0.2rem">
+              <span style="font-size:0.8rem;font-weight:600">${i+1}. ${c.razon_social}</span>
+              <span style="font-size:0.8rem;font-weight:700;color:var(--navy)">${fmt(total)}</span>
+            </div>
+            <div style="background:var(--border);border-radius:99px;height:5px">
+              <div style="background:var(--navy);border-radius:99px;height:5px;width:${pct}%"></div>
+            </div>
+            <div style="font-size:0.72rem;color:var(--slate);margin-top:0.15rem">${pct}% del total adeudado</div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>
 
-    <h3 style="font-size:0.85rem;color:var(--slate);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:1.25rem 0 0.75rem;">Perspectiva de Cobro</h3>
-    <div class="persp-grid">
-      ${Object.entries(perspCount).map(([p, n]) => `
-        <div class="persp-card persp-${p.toLowerCase()}">
-          <div class="persp-num">${n}</div>
-          <div class="persp-lbl">${p}</div>
-        </div>
-      `).join('')}
+    <!-- PERSPECTIVA DE COBRO -->
+    <div style="background:#fff;border-radius:10px;padding:1.3rem;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+      <div style="font-size:0.82rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1rem">Perspectiva de Cobro</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
+        ${[
+          { key: 'Alta', color: '#16a34a', bg: '#dcfce7' },
+          { key: 'Media', color: '#ca8a04', bg: '#fef3c7' },
+          { key: 'Baja', color: '#ea580c', bg: '#fde8d0' },
+          { key: 'Incobrable', color: '#dc2626', bg: '#fee2e2' }
+        ].map(p => `
+          <div style="background:${p.bg};border-radius:8px;padding:1rem;text-align:center">
+            <div style="font-size:1.8rem;font-weight:800;color:${p.color}">${perspCount[p.key]}</div>
+            <div style="font-size:0.75rem;font-weight:700;color:${p.color};margin-top:0.2rem">${p.key}</div>
+            <div style="font-size:0.72rem;color:${p.color};opacity:0.8;margin-top:0.2rem">${fmt(perspMonto[p.key])}</div>
+          </div>
+        `).join('')}
+      </div>
     </div>
   `;
 }
