@@ -334,6 +334,20 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
 /* MONTO */
 .monto { font-variant-numeric: tabular-nums; }
 
+/* BOTON OBSERVACIONES */
+.btn-obs {
+  padding: 0.25rem 0.6rem;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-obs:hover { background: #bae6fd; }
+
 /* COBRADO */
 tbody tr.cobrado-row { background: #f0fdf4 !important; }
 tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
@@ -569,6 +583,19 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
 
 </div>
 
+<!-- MODAL OBSERVACIONES -->
+<div class="modal-overlay" id="obs-overlay">
+  <div class="modal" style="max-width:520px">
+    <h2 id="obs-titulo" style="margin-bottom:0.5rem"></h2>
+    <p style="font-size:0.75rem;color:var(--slate);margin-bottom:1rem">Observaciones</p>
+    <textarea id="obs-texto" style="width:100%;min-height:140px;padding:0.75rem;border:1.5px solid var(--border);border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;outline:none;line-height:1.6"></textarea>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="cerrarObservaciones()">Cerrar</button>
+      <button class="btn-save" onclick="guardarObservaciones()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL NUEVO CLIENTE -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
@@ -653,7 +680,11 @@ function renderTabla(lista) {
       <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'estado', ESTADOS)">${badgeEstado(c.estado)}</span></td>
       <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'fecha_gestion', 'text')">${c.fecha_gestion || '—'}</span></td>
       <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'perspectiva', PERSPECTIVAS)">${badgePersp(c.perspectiva)}</span></td>
-      <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'observaciones', 'text')">${c.observaciones || '—'}</span></td>
+      <td>
+        <button class="btn-obs" onclick="abrirObservaciones(${c.id}, '${(c.razon_social||'').replace(/'/g, "\\'")}', \`${(c.observaciones||'').replace(/`/g, '\\`')}\`)">
+          ${c.observaciones ? '📋 Ver' : '—'}
+        </button>
+      </td>
       <td>
         <div class="row-actions">
           <button class="btn-icon expand" onclick="toggleHistorial(${c.id})" title="Facturas y gestiones">📝</button>
@@ -1040,6 +1071,25 @@ async function eliminarFactura(cid, fid) {
   toast('Factura eliminada', '');
 }
 
+// ---- OBSERVACIONES ----
+let obsClienteId = null;
+function abrirObservaciones(id, nombre, texto) {
+  obsClienteId = id;
+  document.getElementById('obs-titulo').textContent = nombre;
+  document.getElementById('obs-texto').value = texto || '';
+  document.getElementById('obs-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('obs-texto').focus(), 100);
+}
+function cerrarObservaciones() {
+  document.getElementById('obs-overlay').classList.remove('open');
+  obsClienteId = null;
+}
+async function guardarObservaciones() {
+  const texto = document.getElementById('obs-texto').value.trim();
+  await updateCliente(obsClienteId, { observaciones: texto });
+  cerrarObservaciones();
+}
+
 // ---- PDF CLIENTE ----
 function exportarPDFCliente(id) {
   window.open(`/exportar/pdf/cliente/${id}`, '_blank');
@@ -1419,6 +1469,9 @@ async function loadGraficos() {
 // ---- INIT ----
 document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) cerrarModal();
+});
+document.getElementById('obs-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) cerrarObservaciones();
 });
 cargarClientes();
 cargarTasa();
