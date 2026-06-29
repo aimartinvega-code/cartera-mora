@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cartera en Mora — Inicio</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #0f1e33;
+  min-height: 100vh;
+  color: #fff;
+}
+
+/* HEADER */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.brand { display: flex; align-items: center; gap: 0.6rem; font-size: 1.1rem; font-weight: 700; }
+.header-right { display: flex; gap: 0.75rem; align-items: center; }
+.btn-outline {
+  padding: 0.4rem 0.9rem;
+  border: 1.5px solid rgba(255,255,255,0.3);
+  border-radius: 7px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.82rem;
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.btn-outline:hover { background: rgba(255,255,255,0.1); }
+.btn-primary {
+  padding: 0.4rem 1rem;
+  background: #fff;
+  color: #0f1e33;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.9; }
+
+/* HERO */
+.hero {
+  text-align: center;
+  padding: 3rem 2rem 2rem;
+}
+.hero-icon { font-size: 3.5rem; display: block; margin-bottom: 1rem; }
+.hero h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
+.hero p { font-size: 1rem; opacity: 0.6; }
+
+/* KPI STRIP */
+.kpi-strip {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 1.5rem 2rem;
+  margin: 0 auto;
+  max-width: 900px;
+}
+.kpi-card {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 1.2rem 1.8rem;
+  text-align: center;
+  min-width: 180px;
+  flex: 1;
+}
+.kpi-label { font-size: 0.72rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.4rem; }
+.kpi-val { font-size: 1.6rem; font-weight: 800; }
+.kpi-sub { font-size: 0.72rem; opacity: 0.5; margin-top: 0.2rem; }
+
+/* MAIN GRID */
+.main-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  padding: 1.5rem 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.menu-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 1.5rem;
+  text-decoration: none;
+  color: #fff;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+.menu-card:hover {
+  background: rgba(255,255,255,0.12);
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,0.25);
+}
+.menu-card-icon { font-size: 2rem; }
+.menu-card-title { font-size: 1rem; font-weight: 700; }
+.menu-card-desc { font-size: 0.82rem; opacity: 0.55; line-height: 1.4; }
+.menu-card.accent { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
+
+/* LINKS EXTERNOS */
+.ext-section {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 2rem 2rem;
+}
+.ext-title { font-size: 0.75rem; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
+.ext-links { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.ext-link {
+  padding: 0.5rem 1rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background 0.15s;
+}
+.ext-link:hover { background: rgba(255,255,255,0.12); }
+
+/* FOOTER */
+.footer {
+  text-align: center;
+  padding: 1.5rem;
+  font-size: 0.75rem;
+  opacity: 0.3;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  margin-top: 1rem;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">⚖️ Cartera en Mora</div>
+  <div class="header-right">
+    <span style="font-size:0.82rem;opacity:0.6">{{ username }} {% if role == 'admin' %}👑{% else %}👁{% endif %}</span>
+    <a href="/logout" class="btn-outline">Salir</a>
+    <a href="/app" class="btn-primary">Ir a la app →</a>
+  </div>
+</div>
+
+<div class="hero">
+  <span class="hero-icon">⚖️</span>
+  <h1>Bienvenido, {{ username }}</h1>
+  <p>Panel de gestión de cartera en mora — LUBRE S.R.L.</p>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-strip" id="kpi-strip">
+  <div class="kpi-card"><div class="kpi-label">Cargando...</div></div>
+</div>
+
+<!-- MENU PRINCIPAL -->
+<div class="main-grid">
+  <a href="/app" class="menu-card accent">
+    <span class="menu-card-icon">📋</span>
+    <div class="menu-card-title">Clientes</div>
+    <div class="menu-card-desc">Ver y gestionar todos los clientes en mora, editar estados, cargar facturas y gestiones.</div>
+  </a>
+  <a href="/app#resumen" class="menu-card" onclick="sessionStorage.setItem('goto','resumen')">
+    <span class="menu-card-icon">📊</span>
+    <div class="menu-card-title">Resumen y Gráficos</div>
+    <div class="menu-card-desc">Dashboard ejecutivo con totales, top deudores, perspectiva de cobro y gráficos.</div>
+  </a>
+  <a href="/exportar/pdf" class="menu-card">
+    <span class="menu-card-icon">📄</span>
+    <div class="menu-card-title">Exportar PDF</div>
+    <div class="menu-card-desc">Descargar el informe completo de la cartera en formato PDF.</div>
+  </a>
+  {% if role == 'admin' %}
+  <a href="/backup/descargar" class="menu-card">
+    <span class="menu-card-icon">💾</span>
+    <div class="menu-card-title">Backup</div>
+    <div class="menu-card-desc">Descargar copia de seguridad completa de todos los datos en formato JSON.</div>
+  </a>
+  <a href="/app#actividad" class="menu-card" onclick="sessionStorage.setItem('goto','actividad')">
+    <span class="menu-card-icon">🔒</span>
+    <div class="menu-card-title">Log de Actividad</div>
+    <div class="menu-card-desc">Ver registro de todas las acciones realizadas por los usuarios.</div>
+  </a>
+  {% endif %}
+</div>
+
+<!-- LINKS EXTERNOS -->
+<div class="ext-section">
+  <div class="ext-title">Accesos rápidos externos</div>
+  <div class="ext-links">
+    <a href="https://login.justucuman.gov.ar/login" target="_blank" class="ext-link">⚖️ Poder Judicial de Tucumán</a>
+    <a href="https://www.bcra.gob.ar/situacion-crediticia/" target="_blank" class="ext-link">🏦 BCRA — Situación Crediticia</a>
+  </div>
+</div>
+
+<div class="footer">Cartera en Mora · LUBRE S.R.L. · Los Nogales, Tucumán</div>
+
+<script>
+async function cargarKPIs() {
+  try {
+    const res = await fetch('/api/resumen');
+    const r = await res.json();
+    const resClientes = await fetch('/api/clientes');
+    const clientes = await resClientes.json();
+
+    const activos = clientes.filter(c => c.estado !== 'COBRADO/CERRADO');
+    const cobrados = clientes.filter(c => c.estado === 'COBRADO/CERRADO');
+    const totalAdeudado = activos.reduce((s, c) => s + (c.monto_original||0) + (c.intereses||0), 0);
+    const totalCobrado = cobrados.reduce((s, c) => s + (c.monto_original||0), 0);
+    const totalCartera = totalAdeudado + totalCobrado;
+    const pct = totalCartera > 0 ? Math.round(totalCobrado / totalCartera * 100) : 0;
+
+    function fmt(v) { return '$ ' + Number(v).toLocaleString('es-AR'); }
+
+    document.getElementById('kpi-strip').innerHTML = `
+      <div class="kpi-card">
+        <div class="kpi-label">Total Adeudado</div>
+        <div class="kpi-val">${fmt(totalAdeudado)}</div>
+        <div class="kpi-sub">${activos.length} clientes activos</div>
+      </div>
+      <div class="kpi-card" style="border-color:rgba(22,163,74,0.4)">
+        <div class="kpi-label">Total Cobrado</div>
+        <div class="kpi-val" style="color:#4ade80">${fmt(totalCobrado)}</div>
+        <div class="kpi-sub">${cobrados.length} clientes cobrados</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Tasa de Recupero</div>
+        <div class="kpi-val">${pct}%</div>
+        <div class="kpi-sub">del total de cartera</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Clientes</div>
+        <div class="kpi-val">${clientes.length}</div>
+        <div class="kpi-sub">${activos.length} activos · ${cobrados.length} cobrados</div>
+      </div>
+    `;
+  } catch(e) {
+    document.getElementById('kpi-strip').innerHTML = '';
+  }
+}
+cargarKPIs();
+</script>
+</body>
+</html>
