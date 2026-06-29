@@ -450,6 +450,7 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
     <span>⚖️</span> Cartera en Mora
   </div>
   <div class="header-actions">
+    <span style="color:rgba(255,255,255,0.6);font-size:0.8rem">{{ username }} {% if role == 'admin' %}👑{% else %}👁{% endif %}</span>
     <a href="/exportar/pdf" class="btn-header">📄 Exportar PDF</a>
     <a href="/logout" class="btn-header">Salir</a>
   </div>
@@ -490,8 +491,7 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
         <option>Incobrable</option>
       </select>
       <button class="btn-add" onclick="abrirModal()">＋ Nuevo cliente</button>
-      <button class="btn-add" style="background:#16a34a" onclick="document.getElementById('import-excel').click()">📤 Importar Excel</button>
-      <input type="file" id="import-excel" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(this)">
+      ${IS_ADMIN ? `<button class="btn-add" style="background:#16a34a" onclick="document.getElementById('import-excel').click()">📤 Importar Excel</button><input type="file" id="import-excel" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(this)">` : ''}
     </div>
 
     <div class="table-wrap">
@@ -578,6 +578,7 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
 const ESTADOS = ['PREJUDICIAL','JUICIO','SENTENCIA','EJECUCION','MEDIACION','COBRADO/CERRADO'];
 const PERSPECTIVAS = ['','Alta','Media','Baja','Incobrable'];
 const TIPOS_GESTION = ['Llamado telefónico','WhatsApp','Email','Carta documento','Visita','Reunión','Nota interna','Otro'];
+const IS_ADMIN = {{ 'true' if role == 'admin' else 'false' }};
 
 let clientes = [];
 let historialCache = {};
@@ -629,7 +630,7 @@ function renderTabla(lista) {
           <button class="btn-icon expand" onclick="toggleHistorial(${c.id})" title="Facturas y gestiones">📝</button>
           <button class="btn-icon" style="background:#e0f2fe;color:#0369a1" onclick="exportarPDFCliente(${c.id})" title="Exportar PDF">📄</button>
           <button class="btn-icon" style="background:#fef3c7;color:#92400e" onclick="exportarCarta(${c.id})" title="Carta Documento">✉️</button>
-          <button class="btn-icon delete" onclick="eliminarCliente(${c.id})" title="Eliminar">🗑</button>
+          ${IS_ADMIN ? `<button class="btn-icon delete" onclick="eliminarCliente(${c.id})" title="Eliminar">🗑</button>` : ''}
         </div>
       </td>
     `;
