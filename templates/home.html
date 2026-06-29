@@ -175,37 +175,11 @@ body {
     <div class="menu-card-title">Clientes</div>
     <div class="menu-card-desc">Ver y gestionar todos los clientes en mora, editar estados, cargar facturas y gestiones.</div>
   </a>
-  <a href="/app#resumen" class="menu-card" onclick="sessionStorage.setItem('goto','resumen')">
+  <a href="/app" onclick="sessionStorage.setItem('goto','resumen')" class="menu-card">
     <span class="menu-card-icon">📊</span>
     <div class="menu-card-title">Resumen y Gráficos</div>
     <div class="menu-card-desc">Dashboard ejecutivo con totales, top deudores, perspectiva de cobro y gráficos.</div>
   </a>
-  <a href="/exportar/pdf" class="menu-card">
-    <span class="menu-card-icon">📄</span>
-    <div class="menu-card-title">Exportar PDF</div>
-    <div class="menu-card-desc">Descargar el informe completo de la cartera en formato PDF.</div>
-  </a>
-  {% if role == 'admin' %}
-  <a href="/backup/descargar" class="menu-card">
-    <span class="menu-card-icon">💾</span>
-    <div class="menu-card-title">Backup</div>
-    <div class="menu-card-desc">Descargar copia de seguridad completa de todos los datos en formato JSON.</div>
-  </a>
-  <a href="/app#actividad" class="menu-card" onclick="sessionStorage.setItem('goto','actividad')">
-    <span class="menu-card-icon">🔒</span>
-    <div class="menu-card-title">Log de Actividad</div>
-    <div class="menu-card-desc">Ver registro de todas las acciones realizadas por los usuarios.</div>
-  </a>
-  {% endif %}
-</div>
-
-<!-- LINKS EXTERNOS -->
-<div class="ext-section">
-  <div class="ext-title">Accesos rápidos externos</div>
-  <div class="ext-links">
-    <a href="https://login.justucuman.gov.ar/login" target="_blank" class="ext-link">⚖️ Poder Judicial de Tucumán</a>
-    <a href="https://www.bcra.gob.ar/situacion-crediticia/" target="_blank" class="ext-link">🏦 BCRA — Situación Crediticia</a>
-  </div>
 </div>
 
 <div class="footer">Cartera en Mora · LUBRE S.R.L. · Los Nogales, Tucumán</div>
