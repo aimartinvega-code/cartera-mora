@@ -611,36 +611,40 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
 
 <!-- MODAL NUEVO CLIENTE -->
 <div class="modal-overlay" id="modal-overlay">
-  <div class="modal" style="max-width:520px">
-    <h2>Nuevo Cliente</h2>
+  <div class="modal" style="max-width:580px;max-height:90vh;overflow-y:auto">
+    <h2 style="margin-bottom:1rem">Nuevo Cliente</h2>
 
-    <div style="font-size:0.78rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.6rem">Datos del cliente</div>
-    <div class="form-row"><label>Razón Social *</label><input id="m-razon" placeholder="Nombre o razón social"></div>
-    <div class="form-row"><label>CUIT / DNI</label><input id="m-cuit" placeholder="XX-XXXXXXXX-X"></div>
-    <div class="form-row"><label>Domicilio</label><input id="m-domicilio" placeholder="Calle y número"></div>
-    <div class="form-row"><label>Localidad</label><input id="m-localidad" placeholder="Localidad"></div>
-    <div class="form-row"><label>CP</label><input id="m-cp" placeholder="Código postal"></div>
-    <div class="form-row"><label>Provincia</label><input id="m-provincia" placeholder="Provincia"></div>
-    <div class="form-row"><label>Estado</label>
-      <select id="m-estado">
-        <option>PREJUDICIAL</option><option>JUICIO</option><option>SENTENCIA</option>
-        <option>EJECUCION</option><option>MEDIACION</option><option>COBRADO/CERRADO</option>
-      </select>
-    </div>
-    <div class="form-row"><label>Perspectiva de Cobro</label>
-      <select id="m-perspectiva">
-        <option value="">— Sin definir —</option>
-        <option>Alta</option><option>Media</option><option>Baja</option><option>Incobrable</option>
-      </select>
+    <div style="font-size:0.75rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.6rem">Datos del cliente</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.6rem">
+      <div class="form-row" style="margin:0"><label>Razón Social *</label><input id="m-razon" placeholder="Nombre o razón social"></div>
+      <div class="form-row" style="margin:0"><label>CUIT / DNI</label><input id="m-cuit" placeholder="XX-XXXXXXXX-X"></div>
+      <div class="form-row" style="margin:0"><label>Domicilio</label><input id="m-domicilio" placeholder="Calle y número"></div>
+      <div class="form-row" style="margin:0"><label>Localidad</label><input id="m-localidad" placeholder="Localidad"></div>
+      <div class="form-row" style="margin:0"><label>CP</label><input id="m-cp" placeholder="Código postal"></div>
+      <div class="form-row" style="margin:0"><label>Provincia</label><input id="m-provincia" placeholder="Provincia"></div>
+      <div class="form-row" style="margin:0"><label>Estado</label>
+        <select id="m-estado">
+          <option>PREJUDICIAL</option><option>JUICIO</option><option>SENTENCIA</option>
+          <option>EJECUCION</option><option>MEDIACION</option><option>COBRADO/CERRADO</option>
+        </select>
+      </div>
+      <div class="form-row" style="margin:0"><label>Perspectiva</label>
+        <select id="m-perspectiva">
+          <option value="">— Sin definir —</option>
+          <option>Alta</option><option>Media</option><option>Baja</option><option>Incobrable</option>
+        </select>
+      </div>
     </div>
     <div class="form-row"><label>Observaciones</label><input id="m-obs" placeholder="Notas iniciales"></div>
 
-    <div style="border-top:1.5px solid var(--border);margin:1rem 0 0.75rem"></div>
-    <div style="font-size:0.78rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.6rem">Primera factura <span style="font-weight:400;text-transform:none;color:var(--muted)">(opcional)</span></div>
-    <div class="form-row"><label>N° Factura</label><input id="m-f-num" placeholder="Ej: 0001-00012345"></div>
-    <div class="form-row"><label>Monto (ARS) *</label><input id="m-f-monto" type="number" placeholder="0"></div>
-    <div class="form-row"><label>Fecha de mora *</label><input id="m-f-fecha" type="date"></div>
-    <div class="form-row"><label>Descripción</label><input id="m-f-desc" placeholder="Descripción de la factura"></div>
+    <div style="border-top:1.5px solid var(--border);margin:0.75rem 0 0.6rem"></div>
+    <div style="font-size:0.75rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.6rem">Primera factura <span style="font-weight:400;text-transform:none;color:var(--muted)">(opcional)</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">
+      <div class="form-row" style="margin:0"><label>N° Factura</label><input id="m-f-num" placeholder="0001-00012345"></div>
+      <div class="form-row" style="margin:0"><label>Monto (ARS)</label><input id="m-f-monto" type="number" placeholder="0"></div>
+      <div class="form-row" style="margin:0"><label>Fecha de mora</label><input id="m-f-fecha" type="date"></div>
+      <div class="form-row" style="margin:0"><label>Descripción</label><input id="m-f-desc" placeholder="Descripción"></div>
+    </div>
 
     <div class="modal-actions">
       <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
