@@ -334,6 +334,32 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
 /* MONTO */
 .monto { font-variant-numeric: tabular-nums; }
 
+/* COBRADO */
+tbody tr.cobrado-row { background: #f0fdf4 !important; }
+tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
+
+/* PAGOS */
+.pagos-form { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; align-items: flex-end; }
+.pagos-form input, .pagos-form select {
+  padding: 0.4rem 0.65rem;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  outline: none;
+}
+.pagos-form input:focus, .pagos-form select:focus { border-color: var(--navy); }
+.btn-pago-total {
+  padding: 0.4rem 0.9rem;
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-pago-total:hover { background: #15803d; }
+
 /* GRAFICOS */
 .graficos-grid {
   display: grid;
@@ -481,8 +507,7 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
         <option>SENTENCIA</option>
         <option>EJECUCION</option>
         <option>MEDIACION</option>
-        <option>COBRADO/CERRADO</option>
-      </select>
+        <option>COBRADO/CERRADO</option>      </select>
       <select id="filtro-perspectiva" onchange="filtrarTabla()">
         <option value="">Todas las perspectivas</option>
         <option>Alta</option>
@@ -614,6 +639,7 @@ function renderTabla(lista) {
   lista.forEach((c, i) => {
     const tr = document.createElement('tr');
     tr.dataset.id = c.id;
+    if (c.estado === 'COBRADO/CERRADO') tr.classList.add('cobrado-row');
     const mo = (c.monto_original || 0);
     const int_ = (c.intereses || 0);
     const total = mo + int_;
@@ -648,6 +674,7 @@ function renderTabla(lista) {
         <div class="expand-tabs">
           <div class="expand-tab active" onclick="switchTab(${c.id}, 'datos', this)">👤 Datos</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
+          <div class="expand-tab" onclick="switchTab(${c.id}, 'pagos', this); cargarPagos(${c.id})">💰 Pagos</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'gestiones', this)">📝 Gestiones</div>
         </div>
 
@@ -670,7 +697,31 @@ function renderTabla(lista) {
               <label>Provincia</label>
               <input id="d-prov-${c.id}" value="${c.provincia || ''}" placeholder="Provincia" onblur="guardarDato(${c.id}, 'provincia', this.value)">
             </div>
+            <div class="dato-row">
+              <label>Fecha Inicio Juicio</label>
+              <input type="date" id="d-juicio-${c.id}" value="${c.fecha_juicio || ''}" onblur="guardarDato(${c.id}, 'fecha_juicio', this.value)">
+            </div>
+            <div class="dato-row">
+              <label>Fecha Cobro</label>
+              <input id="d-cobro-${c.id}" value="${c.fecha_cobro || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'fecha_cobro', this.value)">
+            </div>
           </div>
+        </div>
+
+        <!-- PAGOS -->
+        <div class="expand-section" id="sec-pagos-${c.id}">
+          <div class="pagos-form">
+            <input id="p-monto-${c.id}" type="number" placeholder="Monto ($)" style="width:140px">
+            <select id="p-descuenta-${c.id}">
+              <option value="total">Descuenta de capital + intereses</option>
+              <option value="capital">Solo del capital</option>
+              <option value="intereses">Solo de intereses</option>
+            </select>
+            <input id="p-obs-${c.id}" placeholder="Observación (opcional)" style="flex:1;min-width:140px">
+            <button class="btn-hist" onclick="registrarPago(${c.id}, 'parcial')">Registrar pago parcial</button>
+            <button class="btn-pago-total" onclick="registrarPago(${c.id}, 'total')">✅ Pago total</button>
+          </div>
+          <div id="pagos-list-${c.id}"><span class="hist-empty">Sin pagos registrados.</span></div>
         </div>
 
         <!-- FACTURAS -->
@@ -829,6 +880,62 @@ async function importarExcel(input) {
     toast('Error al importar', 'error');
   }
   input.value = '';
+}
+
+// ---- PAGOS ----
+async function cargarPagos(id) {
+  const res = await fetch(`/api/pagos/${id}`);
+  const pagos = await res.json();
+  renderPagos(id, pagos);
+}
+
+function renderPagos(id, pagos) {
+  const container = document.getElementById(`pagos-list-${id}`);
+  if (!pagos.length) {
+    container.innerHTML = '<span class="hist-empty">Sin pagos registrados.</span>';
+    return;
+  }
+  const totalPagado = pagos.reduce((s, p) => s + (p.monto || 0), 0);
+  container.innerHTML = `
+    <div style="margin-bottom:0.5rem;font-size:0.82rem;font-weight:700;color:var(--green)">
+      Total pagado: ${fmt(totalPagado)}
+    </div>
+    ${pagos.map(p => `
+      <div class="hist-item" style="justify-content:space-between">
+        <span class="hist-fecha">${p.fecha}</span>
+        <span class="hist-tipo" style="color:${p.tipo === 'total' ? '#16a34a' : '#0369a1'}">${p.tipo === 'total' ? '✅ PAGO TOTAL' : '💰 Parcial'}</span>
+        <span style="font-weight:700">${fmt(p.monto)}</span>
+        <span style="color:var(--slate);font-size:0.75rem">${p.descuenta_de === 'total' ? 'Cap+Int' : p.descuenta_de}</span>
+        <span class="hist-nota">${p.observacion || '—'}</span>
+        ${IS_ADMIN ? `<button class="btn-icon delete" onclick="eliminarPago(${id}, '${p.id}')" title="Eliminar">🗑</button>` : ''}
+      </div>
+    `).join('')}
+  `;
+}
+
+async function registrarPago(id, tipo) {
+  const monto = parseFloat(document.getElementById(`p-monto-${id}`).value) || 0;
+  const descuenta_de = document.getElementById(`p-descuenta-${id}`).value;
+  const observacion = document.getElementById(`p-obs-${id}`).value.trim();
+  if (!monto) { toast('Ingresá un monto', 'error'); return; }
+  if (tipo === 'total' && !confirm('¿Confirmar PAGO TOTAL? El cliente pasará a estado COBRADO/CERRADO.')) return;
+  await fetch(`/api/pagos/${id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ monto, tipo, descuenta_de, observacion })
+  });
+  document.getElementById(`p-monto-${id}`).value = '';
+  document.getElementById(`p-obs-${id}`).value = '';
+  await cargarPagos(id);
+  await cargarClientes();
+  toast(tipo === 'total' ? '✅ Pago total registrado — cliente COBRADO' : 'Pago parcial registrado ✓', 'success');
+}
+
+async function eliminarPago(cid, pid) {
+  if (!confirm('¿Eliminar este pago?')) return;
+  await fetch(`/api/pagos/${cid}/${pid}`, { method: 'DELETE' });
+  await cargarPagos(cid);
+  toast('Pago eliminado', '');
 }
 
 // ---- DATOS CLIENTE ----
