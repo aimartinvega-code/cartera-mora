@@ -180,12 +180,12 @@ def login():
             session['logged_in'] = True
             session['role'] = 'admin'
             session['username'] = usuario
-            return redirect(url_for('index'))
+            return redirect(url_for('home'))
         elif VIEWER_USER and usuario == VIEWER_USER and password == VIEWER_PASSWORD:
             session['logged_in'] = True
             session['role'] = 'viewer'
             session['username'] = usuario
-            return redirect(url_for('index'))
+            return redirect(url_for('home'))
         error = 'Usuario o contraseña incorrectos'
     return render_template('login.html', error=error)
 
@@ -195,6 +195,11 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/')
+@login_required
+def home():
+    return render_template('home.html', role=session.get('role','admin'), username=session.get('username',''))
+
+@app.route('/app')
 @login_required
 def index():
     data = load_data()
