@@ -89,8 +89,10 @@
     <p>Gestión de clientes — acceso restringido</p>
   </div>
   <form method="POST">
-    <label for="password">Contraseña</label>
-    <input type="password" id="password" name="password" autofocus placeholder="••••••••">
+    <label for="usuario">Usuario</label>
+    <input type="text" id="usuario" name="usuario" autofocus placeholder="Usuario">
+    <label for="password" style="margin-top:0.75rem">Contraseña</label>
+    <input type="password" id="password" name="password" placeholder="••••••••">
     <button type="submit" class="btn">Ingresar</button>
     {% if error %}<p class="error">{{ error }}</p>{% endif %}
   </form>
