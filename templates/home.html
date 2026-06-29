@@ -6,144 +6,77 @@
 <title>Cartera en Mora — Inicio</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  background: #0f1e33;
-  min-height: 100vh;
-  color: #fff;
-}
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1e33; min-height: 100vh; color: #fff; }
 
-/* HEADER */
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 2rem;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-}
+.header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
 .brand { display: flex; align-items: center; gap: 0.6rem; font-size: 1.1rem; font-weight: 700; }
 .header-right { display: flex; gap: 0.75rem; align-items: center; }
-.btn-outline {
-  padding: 0.4rem 0.9rem;
-  border: 1.5px solid rgba(255,255,255,0.3);
-  border-radius: 7px;
-  color: #fff;
-  text-decoration: none;
-  font-size: 0.82rem;
-  transition: background 0.15s;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
+.btn-outline { padding: 0.4rem 0.9rem; border: 1.5px solid rgba(255,255,255,0.3); border-radius: 7px; color: #fff; text-decoration: none; font-size: 0.82rem; transition: background 0.15s; }
 .btn-outline:hover { background: rgba(255,255,255,0.1); }
-.btn-primary {
-  padding: 0.4rem 1rem;
-  background: #fff;
-  color: #0f1e33;
-  border-radius: 7px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  text-decoration: none;
-  transition: opacity 0.15s;
-}
+.btn-primary { padding: 0.4rem 1rem; background: #fff; color: #0f1e33; border-radius: 7px; font-size: 0.82rem; font-weight: 700; text-decoration: none; }
 .btn-primary:hover { opacity: 0.9; }
 
-/* HERO */
-.hero {
-  text-align: center;
-  padding: 3rem 2rem 2rem;
-}
-.hero-icon { font-size: 3.5rem; display: block; margin-bottom: 1rem; }
-.hero h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 0.5rem; }
-.hero p { font-size: 1rem; opacity: 0.6; }
+.hero { text-align: center; padding: 2rem 2rem 1rem; }
+.hero-icon { font-size: 3rem; display: block; margin-bottom: 0.75rem; }
+.hero h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 0.4rem; }
+.hero p { font-size: 0.95rem; opacity: 0.6; }
 
 /* KPI STRIP */
-.kpi-strip {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-  padding: 1.5rem 2rem;
-  margin: 0 auto;
-  max-width: 900px;
-}
-.kpi-card {
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
-  padding: 1.2rem 1.8rem;
-  text-align: center;
-  min-width: 180px;
-  flex: 1;
-}
-.kpi-label { font-size: 0.72rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.4rem; }
-.kpi-val { font-size: 1.6rem; font-weight: 800; }
-.kpi-sub { font-size: 0.72rem; opacity: 0.5; margin-top: 0.2rem; }
+.kpi-strip { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; padding: 1.25rem 2rem; margin: 0 auto; max-width: 960px; }
+.kpi-card { border-radius: 12px; padding: 1.1rem 1.5rem; text-align: center; min-width: 170px; flex: 1; }
+.kpi-card.rojo { background: rgba(220,38,38,0.2); border: 1px solid rgba(220,38,38,0.4); }
+.kpi-card.verde { background: rgba(22,163,74,0.2); border: 1px solid rgba(22,163,74,0.4); }
+.kpi-card.gris { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); }
+.kpi-label { font-size: 0.7rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem; }
+.kpi-val { font-size: 1.5rem; font-weight: 800; }
+.kpi-val.rojo { color: #f87171; }
+.kpi-val.verde { color: #4ade80; }
+.kpi-sub { font-size: 0.7rem; opacity: 0.5; margin-top: 0.2rem; }
 
 /* MAIN GRID */
-.main-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-  padding: 1.5rem 2rem;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-.menu-card {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 14px;
-  padding: 1.5rem;
-  text-decoration: none;
-  color: #fff;
-  transition: all 0.2s;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-.menu-card:hover {
-  background: rgba(255,255,255,0.12);
-  transform: translateY(-2px);
-  border-color: rgba(255,255,255,0.25);
-}
-.menu-card-icon { font-size: 2rem; }
-.menu-card-title { font-size: 1rem; font-weight: 700; }
-.menu-card-desc { font-size: 0.82rem; opacity: 0.55; line-height: 1.4; }
+.main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1.25rem 2rem; max-width: 960px; margin: 0 auto; }
+.menu-card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 1.4rem; text-decoration: none; color: #fff; transition: all 0.2s; display: flex; flex-direction: column; gap: 0.4rem; }
+.menu-card:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px); border-color: rgba(255,255,255,0.25); }
+.menu-card-icon { font-size: 1.8rem; }
+.menu-card-title { font-size: 0.95rem; font-weight: 700; }
+.menu-card-desc { font-size: 0.78rem; opacity: 0.5; line-height: 1.4; }
 .menu-card.accent { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
 
-/* LINKS EXTERNOS */
-.ext-section {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 2rem 2rem;
-}
-.ext-title { font-size: 0.75rem; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
-.ext-links { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-.ext-link {
-  padding: 0.5rem 1rem;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  color: #fff;
-  text-decoration: none;
-  font-size: 0.82rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  transition: background 0.15s;
-}
-.ext-link:hover { background: rgba(255,255,255,0.12); }
+/* CALENDARIO */
+.cal-section { max-width: 960px; margin: 0 auto; padding: 0 2rem 2rem; }
+.cal-title { font-size: 0.75rem; opacity: 0.5; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem; }
+.cal-container { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 1.25rem; }
+.cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.cal-nav { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 6px; padding: 0.3rem 0.7rem; cursor: pointer; font-size: 0.85rem; }
+.cal-nav:hover { background: rgba(255,255,255,0.1); }
+.cal-month { font-size: 1rem; font-weight: 700; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-day-name { text-align: center; font-size: 0.7rem; opacity: 0.5; padding: 0.3rem 0; font-weight: 600; }
+.cal-day { min-height: 52px; border-radius: 8px; padding: 0.3rem; cursor: pointer; transition: background 0.15s; position: relative; }
+.cal-day:hover { background: rgba(255,255,255,0.1); }
+.cal-day.other-month { opacity: 0.25; }
+.cal-day.today { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); }
+.cal-day.has-event { background: rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.4); }
+.cal-day-num { font-size: 0.8rem; font-weight: 600; margin-bottom: 2px; }
+.cal-event-dot { font-size: 0.65rem; line-height: 1.2; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #a5b4fc; }
 
-/* FOOTER */
-.footer {
-  text-align: center;
-  padding: 1.5rem;
-  font-size: 0.75rem;
-  opacity: 0.3;
-  border-top: 1px solid rgba(255,255,255,0.08);
-  margin-top: 1rem;
-}
+/* MODAL EVENTO */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; align-items: center; justify-content: center; }
+.modal-bg.open { display: flex; }
+.modal-box { background: #1e3a5f; border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 400px; }
+.modal-box h3 { font-size: 1rem; margin-bottom: 1rem; }
+.modal-input { width: 100%; padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; font-size: 0.88rem; margin-bottom: 0.6rem; outline: none; }
+.modal-input::placeholder { opacity: 0.4; }
+.modal-select { width: 100%; padding: 0.6rem 0.8rem; background: #1e3a5f; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; font-size: 0.88rem; margin-bottom: 0.75rem; outline: none; }
+.modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.btn-save { padding: 0.5rem 1rem; background: #6366f1; color: #fff; border: none; border-radius: 7px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.btn-cancel { padding: 0.5rem 1rem; background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 7px; font-size: 0.85rem; cursor: pointer; }
+.eventos-list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.4rem; max-height: 150px; overflow-y: auto; }
+.evento-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.06); border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.8rem; }
+.evento-tipo { font-size: 0.7rem; opacity: 0.6; margin-left: 0.4rem; }
+.btn-del-ev { background: transparent; border: none; color: #f87171; cursor: pointer; font-size: 0.85rem; }
+
+.footer { text-align: center; padding: 1.25rem; font-size: 0.72rem; opacity: 0.25; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 0.5rem; }
 </style>
 </head>
 <body>
@@ -163,61 +96,97 @@ body {
   <p>Panel de gestión de cartera en mora — LUBRE S.R.L.</p>
 </div>
 
-<!-- KPIs -->
 <div class="kpi-strip" id="kpi-strip">
-  <div class="kpi-card"><div class="kpi-label">Cargando...</div></div>
+  <div class="kpi-card gris"><div class="kpi-label">Cargando...</div></div>
 </div>
 
-<!-- MENU PRINCIPAL -->
 <div class="main-grid">
   <a href="/app" class="menu-card accent">
     <span class="menu-card-icon">📋</span>
     <div class="menu-card-title">Clientes</div>
-    <div class="menu-card-desc">Ver y gestionar todos los clientes en mora, editar estados, cargar facturas y gestiones.</div>
+    <div class="menu-card-desc">Ver y gestionar todos los clientes en mora.</div>
   </a>
   <a href="/app" onclick="sessionStorage.setItem('goto','resumen')" class="menu-card">
     <span class="menu-card-icon">📊</span>
     <div class="menu-card-title">Resumen y Gráficos</div>
-    <div class="menu-card-desc">Dashboard ejecutivo con totales, top deudores, perspectiva de cobro y gráficos.</div>
+    <div class="menu-card-desc">Dashboard ejecutivo con totales y gráficos.</div>
   </a>
+</div>
+
+<!-- CALENDARIO -->
+<div class="cal-section">
+  <div class="cal-title">📅 Calendario de eventos</div>
+  <div class="cal-container">
+    <div class="cal-header">
+      <button class="cal-nav" onclick="cambiarMes(-1)">‹</button>
+      <div class="cal-month" id="cal-month-title"></div>
+      <button class="cal-nav" onclick="cambiarMes(1)">›</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
 </div>
 
 <div class="footer">Cartera en Mora · LUBRE S.R.L. · Los Nogales, Tucumán</div>
 
+<!-- MODAL EVENTO -->
+<div class="modal-bg" id="modal-evento">
+  <div class="modal-box">
+    <h3 id="modal-fecha-titulo"></h3>
+    <input class="modal-input" id="ev-titulo" placeholder="Título del evento *">
+    <select class="modal-select" id="ev-tipo">
+      <option value="audiencia">⚖️ Audiencia</option>
+      <option value="vencimiento">⏰ Vencimiento de plazo</option>
+      <option value="reunion">🤝 Reunión</option>
+      <option value="recordatorio">🔔 Recordatorio general</option>
+      <option value="pago">💰 Pago esperado</option>
+      <option value="otro">📌 Otro</option>
+    </select>
+    <input class="modal-input" id="ev-cliente" placeholder="Cliente relacionado (opcional)">
+    <div class="eventos-list" id="eventos-dia"></div>
+    <div class="modal-actions" style="margin-top:0.75rem">
+      <button class="btn-cancel" onclick="cerrarModal()">Cerrar</button>
+      <button class="btn-save" onclick="guardarEvento()">＋ Agregar</button>
+    </div>
+  </div>
+</div>
+
 <script>
+// ---- KPIs ----
 async function cargarKPIs() {
   try {
-    const res = await fetch('/api/resumen');
-    const r = await res.json();
     const resClientes = await fetch('/api/clientes');
     const clientes = await resClientes.json();
-
     const activos = clientes.filter(c => c.estado !== 'COBRADO/CERRADO');
     const cobrados = clientes.filter(c => c.estado === 'COBRADO/CERRADO');
     const totalAdeudado = activos.reduce((s, c) => s + (c.monto_original||0) + (c.intereses||0), 0);
+
+    // Cobrado este mes
+    const hoy = new Date();
+    const mesActual = `${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
+    const cobradoMes = (await fetch('/api/pagos_mes').then(r => r.json()).catch(() => 0));
+
     const totalCobrado = cobrados.reduce((s, c) => s + (c.monto_original||0), 0);
     const totalCartera = totalAdeudado + totalCobrado;
     const pct = totalCartera > 0 ? Math.round(totalCobrado / totalCartera * 100) : 0;
-
     function fmt(v) { return '$ ' + Number(v).toLocaleString('es-AR'); }
 
     document.getElementById('kpi-strip').innerHTML = `
-      <div class="kpi-card">
+      <div class="kpi-card rojo">
         <div class="kpi-label">Total Adeudado</div>
-        <div class="kpi-val">${fmt(totalAdeudado)}</div>
+        <div class="kpi-val rojo">${fmt(totalAdeudado)}</div>
         <div class="kpi-sub">${activos.length} clientes activos</div>
       </div>
-      <div class="kpi-card" style="border-color:rgba(22,163,74,0.4)">
+      <div class="kpi-card verde">
         <div class="kpi-label">Total Cobrado</div>
-        <div class="kpi-val" style="color:#4ade80">${fmt(totalCobrado)}</div>
+        <div class="kpi-val verde">${fmt(totalCobrado)}</div>
         <div class="kpi-sub">${cobrados.length} clientes cobrados</div>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card gris">
         <div class="kpi-label">Tasa de Recupero</div>
         <div class="kpi-val">${pct}%</div>
         <div class="kpi-sub">del total de cartera</div>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card gris">
         <div class="kpi-label">Total Clientes</div>
         <div class="kpi-val">${clientes.length}</div>
         <div class="kpi-sub">${activos.length} activos · ${cobrados.length} cobrados</div>
@@ -227,7 +196,127 @@ async function cargarKPIs() {
     document.getElementById('kpi-strip').innerHTML = '';
   }
 }
+
+// ---- CALENDARIO ----
+let calYear, calMonth, calEventos = {};
+const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const TIPO_ICONS = { audiencia:'⚖️', vencimiento:'⏰', reunion:'🤝', recordatorio:'🔔', pago:'💰', otro:'📌' };
+
+function cargarEventosStorage() {
+  try { calEventos = JSON.parse(localStorage.getItem('cal_eventos') || '{}'); } catch { calEventos = {}; }
+}
+function guardarEventosStorage() {
+  localStorage.setItem('cal_eventos', JSON.stringify(calEventos));
+}
+
+function renderCalendario() {
+  const hoy = new Date();
+  document.getElementById('cal-month-title').textContent = `${MESES[calMonth]} ${calYear}`;
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = DIAS.map(d => `<div class="cal-day-name">${d}</div>`).join('');
+
+  const primerDia = new Date(calYear, calMonth, 1).getDay();
+  const diasEnMes = new Date(calYear, calMonth + 1, 0).getDate();
+  const diasMesAnterior = new Date(calYear, calMonth, 0).getDate();
+
+  // Días del mes anterior
+  for (let i = primerDia - 1; i >= 0; i--) {
+    const d = diasMesAnterior - i;
+    grid.innerHTML += `<div class="cal-day other-month"><div class="cal-day-num">${d}</div></div>`;
+  }
+
+  // Días del mes actual
+  for (let d = 1; d <= diasEnMes; d++) {
+    const key = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const eventos = calEventos[key] || [];
+    const esHoy = d === hoy.getDate() && calMonth === hoy.getMonth() && calYear === hoy.getFullYear();
+    const tieneEventos = eventos.length > 0;
+    grid.innerHTML += `
+      <div class="cal-day ${esHoy ? 'today' : ''} ${tieneEventos ? 'has-event' : ''}" onclick="abrirDia('${key}', ${d})">
+        <div class="cal-day-num">${d}</div>
+        ${eventos.slice(0,2).map(e => `<div class="cal-event-dot">${TIPO_ICONS[e.tipo]||'📌'} ${e.titulo}</div>`).join('')}
+        ${eventos.length > 2 ? `<div class="cal-event-dot" style="opacity:0.5">+${eventos.length-2} más</div>` : ''}
+      </div>`;
+  }
+
+  // Completar con días del mes siguiente
+  const total = primerDia + diasEnMes;
+  const restantes = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let d = 1; d <= restantes; d++) {
+    grid.innerHTML += `<div class="cal-day other-month"><div class="cal-day-num">${d}</div></div>`;
+  }
+}
+
+function cambiarMes(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendario();
+}
+
+let diaSeleccionado = null;
+function abrirDia(key, num) {
+  diaSeleccionado = key;
+  const [y, m, d] = key.split('-');
+  document.getElementById('modal-fecha-titulo').textContent = `${num} de ${MESES[parseInt(m)-1]} ${y}`;
+  document.getElementById('ev-titulo').value = '';
+  document.getElementById('ev-cliente').value = '';
+  renderEventosDia(key);
+  document.getElementById('modal-evento').classList.add('open');
+}
+
+function renderEventosDia(key) {
+  const eventos = calEventos[key] || [];
+  const container = document.getElementById('eventos-dia');
+  if (!eventos.length) {
+    container.innerHTML = '<div style="font-size:0.78rem;opacity:0.4;padding:0.3rem 0">Sin eventos para este día.</div>';
+    return;
+  }
+  container.innerHTML = eventos.map((e, i) => `
+    <div class="evento-item">
+      <span>${TIPO_ICONS[e.tipo]||'📌'} ${e.titulo}${e.cliente ? ` <span class="evento-tipo">· ${e.cliente}</span>` : ''}</span>
+      <button class="btn-del-ev" onclick="eliminarEvento('${key}', ${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function guardarEvento() {
+  const titulo = document.getElementById('ev-titulo').value.trim();
+  if (!titulo) { document.getElementById('ev-titulo').focus(); return; }
+  const tipo = document.getElementById('ev-tipo').value;
+  const cliente = document.getElementById('ev-cliente').value.trim();
+  if (!calEventos[diaSeleccionado]) calEventos[diaSeleccionado] = [];
+  calEventos[diaSeleccionado].push({ titulo, tipo, cliente });
+  guardarEventosStorage();
+  document.getElementById('ev-titulo').value = '';
+  document.getElementById('ev-cliente').value = '';
+  renderEventosDia(diaSeleccionado);
+  renderCalendario();
+}
+
+function eliminarEvento(key, idx) {
+  calEventos[key].splice(idx, 1);
+  if (!calEventos[key].length) delete calEventos[key];
+  guardarEventosStorage();
+  renderEventosDia(key);
+  renderCalendario();
+}
+
+function cerrarModal() {
+  document.getElementById('modal-evento').classList.remove('open');
+}
+document.getElementById('modal-evento').addEventListener('click', e => {
+  if (e.target === e.currentTarget) cerrarModal();
+});
+
+// ---- INIT ----
+const hoyInit = new Date();
+calYear = hoyInit.getFullYear();
+calMonth = hoyInit.getMonth();
+cargarEventosStorage();
 cargarKPIs();
+renderCalendario();
 </script>
 </body>
 </html>
