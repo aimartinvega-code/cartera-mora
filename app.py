@@ -29,10 +29,32 @@ EMAIL_FROM = os.environ.get('EMAIL_FROM', 'onboarding@resend.dev')
 DATA_DIR = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
 FILES_DIR = os.path.join(DATA_DIR, 'archivos')
 DATA_FILE = os.path.join(DATA_DIR, 'cartera.json')
+LOG_FILE = os.path.join(DATA_DIR, 'actividad.json')
 os.makedirs(FILES_DIR, exist_ok=True)
 
 ESTADOS = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'COBRADO/CERRADO']
 PERSPECTIVAS = ['Alta', 'Media', 'Baja', 'Incobrable', '']
+
+# --- Log de actividad ---
+def log_actividad(accion, detalle='', cliente=''):
+    try:
+        logs = []
+        if os.path.exists(LOG_FILE):
+            with open(LOG_FILE, 'r', encoding='utf-8') as f:
+                logs = json.load(f)
+        logs.insert(0, {
+            'fecha': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
+            'usuario': session.get('username', 'sistema'),
+            'accion': accion,
+            'cliente': cliente,
+            'detalle': detalle
+        })
+        # Mantener solo los últimos 500 registros
+        logs = logs[:500]
+        with open(LOG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(logs, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
 # --- Calculo de intereses ---
 def calcular_interes_factura(monto, fecha_mora_str, tasa_anual):
@@ -229,6 +251,7 @@ def add_cliente():
     data['historial'][str(nuevo['id'])] = []
     data['facturas'][str(nuevo['id'])] = []
     save_data(data)
+    log_actividad('Cliente creado', cliente=nuevo.get('razon_social',''))
     return jsonify(nuevo)
 
 @app.route('/api/clientes/<int:cid>', methods=['PUT'])
@@ -244,6 +267,10 @@ def update_cliente(cid):
             save_data(data)
             if estado_anterior != estado_nuevo:
                 enviar_email_cambio_estado(data['clientes'][i], estado_anterior, estado_nuevo)
+                log_actividad('Cambio de estado', f'{estado_anterior} → {estado_nuevo}', c.get('razon_social',''))
+            else:
+                campos = ', '.join(updates.keys())
+                log_actividad('Edición de cliente', f'Campos: {campos}', c.get('razon_social',''))
             return jsonify(data['clientes'][i])
     return jsonify({'error': 'No encontrado'}), 404
 
@@ -251,10 +278,12 @@ def update_cliente(cid):
 @admin_required
 def delete_cliente(cid):
     data = load_data()
+    cliente = next((c for c in data['clientes'] if c['id'] == cid), None)
     data['clientes'] = [c for c in data['clientes'] if c['id'] != cid]
     data['historial'].pop(str(cid), None)
     data['facturas'].pop(str(cid), None)
     save_data(data)
+    log_actividad('Cliente eliminado', cliente=cliente.get('razon_social','') if cliente else str(cid))
     return jsonify({'ok': True})
 
 @app.route('/api/historial/<int:cid>', methods=['GET'])
@@ -404,6 +433,30 @@ def get_resumen():
             adeudado_total += mo + int_
         resumen[estado] = {'cantidad': len(cs), 'monto_original': monto_total, 'total_adeudado': adeudado_total}
     return jsonify(resumen)
+
+# --- Log de actividad ---
+@app.route('/api/log', methods=['GET'])
+@admin_required
+def get_log():
+    if not os.path.exists(LOG_FILE):
+        return jsonify([])
+    with open(LOG_FILE, 'r', encoding='utf-8') as f:
+        return jsonify(json.load(f))
+
+@app.route('/api/log', methods=['DELETE'])
+@admin_required
+def clear_log():
+    if os.path.exists(LOG_FILE):
+        os.remove(LOG_FILE)
+    return jsonify({'ok': True})
+
+# --- Backup ---
+@app.route('/backup/descargar')
+@admin_required
+def backup_descargar():
+    log_actividad('Backup descargado')
+    return send_file(DATA_FILE, mimetype='application/json', as_attachment=True,
+                     download_name=f'backup_cartera_{datetime.now().strftime("%Y%m%d_%H%M")}.json')
 
 @app.route('/exportar/pdf/cliente/<int:cid>')
 @login_required
