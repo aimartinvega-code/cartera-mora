@@ -15,7 +15,13 @@ app.secret_key = os.environ.get('SECRET_KEY') or 'cartera-mora-secret-2024'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 # --- Config ---
-APP_PASSWORD = os.environ.get('APP_PASSWORD', 'admin123')
+# Usuario admin
+ADMIN_USER = os.environ.get('ADMIN_USER', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', os.environ.get('APP_PASSWORD', 'admin123'))
+# Usuario viewer
+VIEWER_USER = os.environ.get('VIEWER_USER', '')
+VIEWER_PASSWORD = os.environ.get('VIEWER_PASSWORD', '')
+
 EMAIL_DESTINO = os.environ.get('EMAIL_DESTINO', '')
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 EMAIL_FROM = os.environ.get('EMAIL_FROM', 'onboarding@resend.dev')
@@ -100,6 +106,19 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        if session.get('role') != 'admin':
+            return jsonify({'error': 'Sin permisos'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+def is_admin():
+    return session.get('role') == 'admin'
+
 # --- Email ---
 def enviar_email_cambio_estado(cliente, estado_anterior, estado_nuevo):
     if not RESEND_API_KEY or not EMAIL_DESTINO:
@@ -131,10 +150,19 @@ def enviar_email_cambio_estado(cliente, estado_anterior, estado_nuevo):
 def login():
     error = None
     if request.method == 'POST':
-        if request.form.get('password') == APP_PASSWORD:
+        usuario = request.form.get('usuario', '').strip()
+        password = request.form.get('password', '').strip()
+        if usuario == ADMIN_USER and password == ADMIN_PASSWORD:
             session['logged_in'] = True
+            session['role'] = 'admin'
+            session['username'] = usuario
             return redirect(url_for('index'))
-        error = 'Contraseña incorrecta'
+        elif VIEWER_USER and usuario == VIEWER_USER and password == VIEWER_PASSWORD:
+            session['logged_in'] = True
+            session['role'] = 'viewer'
+            session['username'] = usuario
+            return redirect(url_for('index'))
+        error = 'Usuario o contraseña incorrectos'
     return render_template('login.html', error=error)
 
 @app.route('/logout')
@@ -146,7 +174,7 @@ def logout():
 @login_required
 def index():
     data = load_data()
-    return render_template('index.html', clientes=data['clientes'], estados=ESTADOS, perspectivas=PERSPECTIVAS)
+    return render_template('index.html', clientes=data['clientes'], estados=ESTADOS, perspectivas=PERSPECTIVAS, role=session.get('role','admin'), username=session.get('username',''))
 
 @app.route('/api/config', methods=['GET'])
 @login_required
@@ -218,7 +246,7 @@ def update_cliente(cid):
     return jsonify({'error': 'No encontrado'}), 404
 
 @app.route('/api/clientes/<int:cid>', methods=['DELETE'])
-@login_required
+@admin_required
 def delete_cliente(cid):
     data = load_data()
     data['clientes'] = [c for c in data['clientes'] if c['id'] != cid]
@@ -290,7 +318,7 @@ def add_factura(cid):
     return jsonify(factura)
 
 @app.route('/api/facturas/<int:cid>/<fid>', methods=['DELETE'])
-@login_required
+@admin_required
 def delete_factura(cid, fid):
     data = load_data()
     tasa = data.get('tasa_bna', 60.0)
@@ -502,7 +530,7 @@ def download_archivo(cid, filename):
     return send_file(os.path.join(carpeta, secure_filename(filename)), as_attachment=True)
 
 @app.route('/api/archivos/<int:cid>/<filename>', methods=['DELETE'])
-@login_required
+@admin_required
 def delete_archivo(cid, filename):
     carpeta = os.path.join(FILES_DIR, str(cid))
     fpath = os.path.join(carpeta, secure_filename(filename))
