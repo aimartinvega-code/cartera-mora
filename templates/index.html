@@ -476,38 +476,59 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
 .facturas-table .num { font-variant-numeric: tabular-nums; text-align: right; }
 .facturas-total { background: #f8fafc; font-weight: 700; }
 
-.tasa-bar {
+/* TASA POPOVER */
+.tasa-popover-wrap { position: relative; }
+.btn-tasa-toggle {
+  padding: 0.45rem 0.85rem;
+  border: 1.5px solid #fde68a;
   background: #fef3c7;
-  border: 1px solid #fde68a;
-  border-radius: 8px;
-  padding: 0.6rem 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.82rem;
-  margin-bottom: 1rem;
+  color: #92400e;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
 }
-.tasa-bar strong { color: var(--navy); }
+.btn-tasa-toggle:hover { background: #fde68a; }
+.tasa-popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 0.9rem;
+  width: 200px;
+  z-index: 150;
+}
+.tasa-popover.open { display: block; }
 .tasa-input {
   width: 80px;
-  padding: 0.3rem 0.5rem;
+  padding: 0.35rem 0.5rem;
   border: 1.5px solid #f59e0b;
   border-radius: 5px;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   text-align: center;
   outline: none;
 }
 .btn-tasa {
-  padding: 0.3rem 0.7rem;
+  margin-top: 0.6rem;
+  width: 100%;
+  padding: 0.4rem 0.7rem;
   background: #92400e;
   color: #fff;
   border: none;
-  border-radius: 5px;
-  font-size: 0.78rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
 }
 .btn-tasa:hover { background: #78350f; }
+
+/* IMPORT EXPORT GROUP */
+.import-export-group { display: flex; gap: 0.5rem; }
 </style>
 </head>
 <body>
@@ -546,12 +567,6 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
 
   <!-- PANEL CLIENTES -->
   <div class="panel active" id="panel-clientes">
-    <div class="tasa-bar">
-      ⚡ <strong>Tasa de interés:</strong>
-      <input class="tasa-input" id="tasa-input" type="number" step="0.01" value="60"> % anual
-      <button class="btn-tasa" onclick="guardarTasa()">Actualizar</button>
-      <span id="tasa-info" style="color:#92400e;font-size:0.75rem"></span>
-    </div>
     <div class="filtros">
       <input type="text" id="buscar" placeholder="🔍 Buscar cliente..." oninput="filtrarTabla()">
       <select id="filtro-estado" onchange="filtrarTabla()">
@@ -569,10 +584,27 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
         <option>Baja</option>
         <option>Incobrable</option>
       </select>
+
+      <div class="tasa-popover-wrap">
+        <button class="btn-tasa-toggle" onclick="toggleTasaPopover()">⚡ Tasa: <span id="tasa-display">60</span>%</button>
+        <div class="tasa-popover" id="tasa-popover">
+          <label style="font-size:0.75rem;font-weight:700;color:var(--slate);display:block;margin-bottom:0.4rem">Tasa de interés anual</label>
+          <div style="display:flex;gap:0.4rem;align-items:center">
+            <input class="tasa-input" id="tasa-input" type="number" step="0.01" value="60">
+            <span style="font-size:0.8rem">% anual</span>
+          </div>
+          <div id="tasa-info" style="color:var(--slate);font-size:0.72rem;margin-top:0.3rem"></div>
+          <button class="btn-tasa" onclick="guardarTasa()">Actualizar</button>
+        </div>
+      </div>
+
       <button class="btn-add" onclick="abrirModal()">＋ Nuevo cliente</button>
       {% if role == 'admin' %}
-      <button class="btn-add" style="background:#16a34a" onclick="document.getElementById('import-excel').click()">📤 Importar Excel</button>
-      <input type="file" id="import-excel" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(this)">
+      <div class="import-export-group">
+        <button class="btn-add" style="background:#16a34a" onclick="document.getElementById('import-excel').click()">📤 Importar</button>
+        <input type="file" id="import-excel" accept=".xlsx,.xls" style="display:none" onchange="importarExcel(this)">
+        <a href="/exportar/pdf" class="btn-add" style="background:#0369a1;text-decoration:none;display:inline-flex;align-items:center">📥 Exportar</a>
+      </div>
       {% endif %}
     </div>
 
@@ -1207,10 +1239,21 @@ function exportarCarta(id) {
 }
 
 // ---- TASA BNA ----
+function toggleTasaPopover() {
+  document.getElementById('tasa-popover').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const wrap = document.querySelector('.tasa-popover-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('tasa-popover').classList.remove('open');
+  }
+});
+
 async function cargarTasa() {
   const res = await fetch('/api/config');
   const cfg = await res.json();
   document.getElementById('tasa-input').value = cfg.tasa_bna;
+  document.getElementById('tasa-display').textContent = cfg.tasa_bna;
   document.getElementById('tasa-info').textContent = `Tasa diaria: ${(cfg.tasa_bna / 365).toFixed(4)}%`;
 }
 
@@ -1222,9 +1265,11 @@ async function guardarTasa() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tasa_bna: tasa })
   });
+  document.getElementById('tasa-display').textContent = tasa;
   document.getElementById('tasa-info').textContent = `Tasa diaria: ${(tasa / 365).toFixed(4)}%`;
   await cargarClientes();
   toast(`Tasa actualizada a ${tasa}% anual ✓`, 'success');
+  toggleTasaPopover();
 }
 
 async function cargarHistorial(id) {
