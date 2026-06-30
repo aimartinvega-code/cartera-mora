@@ -30,6 +30,7 @@ DATA_DIR = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '.')
 FILES_DIR = os.path.join(DATA_DIR, 'archivos')
 DATA_FILE = os.path.join(DATA_DIR, 'cartera.json')
 LOG_FILE = os.path.join(DATA_DIR, 'actividad.json')
+EVENTOS_FILE = os.path.join(DATA_DIR, 'eventos.json')
 os.makedirs(FILES_DIR, exist_ok=True)
 
 ESTADOS = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'COBRADO/CERRADO']
@@ -438,6 +439,94 @@ def get_resumen():
             adeudado_total += mo + int_
         resumen[estado] = {'cantidad': len(cs), 'monto_original': monto_total, 'total_adeudado': adeudado_total}
     return jsonify(resumen)
+
+# --- Eventos del calendario ---
+def load_eventos():
+    if os.path.exists(EVENTOS_FILE):
+        with open(EVENTOS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def save_eventos(eventos):
+    with open(EVENTOS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(eventos, f, ensure_ascii=False, indent=2)
+
+@app.route('/api/eventos', methods=['GET'])
+@login_required
+def get_eventos():
+    return jsonify(load_eventos())
+
+@app.route('/api/eventos/<fecha>', methods=['POST'])
+@login_required
+def add_evento(fecha):
+    eventos = load_eventos()
+    nuevo = request.json
+    nuevo['id'] = datetime.now().strftime('%Y%m%d%H%M%S%f')
+    if fecha not in eventos:
+        eventos[fecha] = []
+    eventos[fecha].append(nuevo)
+    save_eventos(eventos)
+    log_actividad('Evento agregado', f"{nuevo.get('titulo','')} ({fecha})")
+    return jsonify(nuevo)
+
+@app.route('/api/eventos/<fecha>/<eid>', methods=['DELETE'])
+@login_required
+def delete_evento(fecha, eid):
+    eventos = load_eventos()
+    if fecha in eventos:
+        eventos[fecha] = [e for e in eventos[fecha] if e.get('id') != eid]
+        if not eventos[fecha]:
+            del eventos[fecha]
+    save_eventos(eventos)
+    return jsonify({'ok': True})
+
+# --- Chequeo diario de eventos y envio de emails ---
+def enviar_email_evento(evento, fecha_str, cuando):
+    if not RESEND_API_KEY or not EMAIL_DESTINO:
+        return
+    try:
+        icono = {'audiencia':'⚖️','vencimiento':'⏰','reunion':'🤝','recordatorio':'🔔','pago':'💰','otro':'📌'}.get(evento.get('tipo'), '📌')
+        cliente_txt = f"<p><strong>Cliente:</strong> {evento.get('cliente')}</p>" if evento.get('cliente') else ""
+        requests.post(
+            'https://api.resend.com/emails',
+            headers={'Authorization': f'Bearer {RESEND_API_KEY}', 'Content-Type': 'application/json'},
+            json={
+                'from': EMAIL_FROM,
+                'to': [EMAIL_DESTINO],
+                'subject': f'[Cartera Mora] {icono} {evento.get("titulo")} — {cuando}',
+                'html': f"""
+                <h2>{icono} Recordatorio de evento</h2>
+                <p><strong>{evento.get('titulo')}</strong></p>
+                <p><strong>Fecha:</strong> {fecha_str}</p>
+                <p><strong>Cuándo:</strong> {cuando}</p>
+                {cliente_txt}
+                """
+            },
+            timeout=10
+        )
+    except Exception:
+        pass
+
+@app.route('/api/eventos/chequear', methods=['GET', 'POST'])
+def chequear_eventos():
+    """Ruta para ser llamada diariamente (cron) que revisa eventos de hoy y mañana"""
+    eventos = load_eventos()
+    hoy = date.today()
+    manana = date.fromordinal(hoy.toordinal() + 1)
+    hoy_str = hoy.strftime('%Y-%m-%d')
+    manana_str = manana.strftime('%Y-%m-%d')
+
+    enviados = 0
+    if hoy_str in eventos:
+        for ev in eventos[hoy_str]:
+            enviar_email_evento(ev, hoy.strftime('%d/%m/%Y'), 'Hoy')
+            enviados += 1
+    if manana_str in eventos:
+        for ev in eventos[manana_str]:
+            enviar_email_evento(ev, manana.strftime('%d/%m/%Y'), 'Mañana')
+            enviados += 1
+
+    return jsonify({'ok': True, 'enviados': enviados, 'fecha_chequeo': hoy_str})
 
 # --- Log de actividad ---
 @app.route('/api/log', methods=['GET'])
