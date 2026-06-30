@@ -205,10 +205,7 @@ const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto'
 const TIPO_ICONS = { audiencia:'⚖️', vencimiento:'⏰', reunion:'🤝', recordatorio:'🔔', pago:'💰', otro:'📌' };
 
 function cargarEventosStorage() {
-  try { calEventos = JSON.parse(localStorage.getItem('cal_eventos') || '{}'); } catch { calEventos = {}; }
-}
-function guardarEventosStorage() {
-  localStorage.setItem('cal_eventos', JSON.stringify(calEventos));
+  fetch('/api/eventos').then(r => r.json()).then(data => { calEventos = data; renderCalendario(); }).catch(() => { calEventos = {}; });
 }
 
 function renderCalendario() {
@@ -281,24 +278,30 @@ function renderEventosDia(key) {
   `).join('');
 }
 
-function guardarEvento() {
+async function guardarEvento() {
   const titulo = document.getElementById('ev-titulo').value.trim();
   if (!titulo) { document.getElementById('ev-titulo').focus(); return; }
   const tipo = document.getElementById('ev-tipo').value;
   const cliente = document.getElementById('ev-cliente').value.trim();
+  const res = await fetch(`/api/eventos/${diaSeleccionado}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ titulo, tipo, cliente })
+  });
+  const nuevo = await res.json();
   if (!calEventos[diaSeleccionado]) calEventos[diaSeleccionado] = [];
-  calEventos[diaSeleccionado].push({ titulo, tipo, cliente });
-  guardarEventosStorage();
+  calEventos[diaSeleccionado].push(nuevo);
   document.getElementById('ev-titulo').value = '';
   document.getElementById('ev-cliente').value = '';
   renderEventosDia(diaSeleccionado);
   renderCalendario();
 }
 
-function eliminarEvento(key, idx) {
+async function eliminarEvento(key, idx) {
+  const ev = calEventos[key][idx];
+  await fetch(`/api/eventos/${key}/${ev.id}`, { method: 'DELETE' });
   calEventos[key].splice(idx, 1);
   if (!calEventos[key].length) delete calEventos[key];
-  guardarEventosStorage();
   renderEventosDia(key);
   renderCalendario();
 }
@@ -314,9 +317,8 @@ document.getElementById('modal-evento').addEventListener('click', e => {
 const hoyInit = new Date();
 calYear = hoyInit.getFullYear();
 calMonth = hoyInit.getMonth();
-cargarEventosStorage();
 cargarKPIs();
-renderCalendario();
+cargarEventosStorage();
 </script>
 </body>
 </html>
