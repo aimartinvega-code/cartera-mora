@@ -781,8 +781,28 @@ def importar_excel():
             continue
 
         # Verificar si ya existe
-        existe = any(c['razon_social'].strip().upper() == razon.upper() for c in data['clientes'])
-        if existe:
+        idx_existente = next((i for i, c in enumerate(data['clientes']) if c['razon_social'].strip().upper() == razon.upper()), None)
+
+        if idx_existente is not None:
+            # Actualizar solo los campos que vengan con valor en el Excel
+            c = data['clientes'][idx_existente]
+            campos = {
+                'cuit': str(get_col(row, ['cuit', 'dni']) or '').strip(),
+                'domicilio': str(get_col(row, ['domicilio', 'direccion', 'dirección']) or '').strip(),
+                'localidad': str(get_col(row, ['localidad']) or '').strip(),
+                'cp': str(get_col(row, ['cp', 'codigo postal', 'código']) or '').strip(),
+                'provincia': str(get_col(row, ['provincia']) or '').strip(),
+                'observaciones': str(get_col(row, ['observ', 'nota']) or '').strip(),
+                'perspectiva': str(get_col(row, ['perspectiva']) or '').strip(),
+                'estado': str(get_col(row, ['estado']) or '').strip().upper(),
+            }
+            actualizado = False
+            for campo, valor in campos.items():
+                if valor and not c.get(campo):  # Solo actualiza si el campo está vacío en la app
+                    data['clientes'][idx_existente][campo] = valor
+                    actualizado = True
+            if actualizado:
+                agregados += 1  # Cuenta como procesado
             continue
 
         nuevo = {
