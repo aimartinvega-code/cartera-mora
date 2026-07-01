@@ -731,12 +731,11 @@ def importar_excel():
         return jsonify({'error': 'No file'}), 400
     f = request.files['file']
     data = load_data()
-    tasa = data.get('tasa_bna', 60.0)
 
     wb = openpyxl.load_workbook(f, data_only=True)
     ws = wb.active
 
-    # Detectar fila de encabezados — buscar la que tenga "razon social" o "cliente"
+    # Detectar fila de encabezados
     header_row = 1
     headers = []
     for i, row in enumerate(ws.iter_rows(min_row=1, max_row=10), start=1):
@@ -757,7 +756,23 @@ def importar_excel():
                     return val
         return None
 
+    # Normalizar perspectiva
+    def normalizar_perspectiva(p):
+        if not p: return ''
+        p = str(p).strip().upper()
+        mapa = {'ALTA': 'Alta', 'MEDIA': 'Media', 'BAJA': 'Baja', 'INCOBRABLE': 'Incobrable'}
+        return mapa.get(p, p.capitalize())
+
+    # Normalizar estado
+    ESTADOS_VALIDOS = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'MEDIACION', 'COBRADO/CERRADO']
+    def normalizar_estado(e):
+        if not e: return 'PREJUDICIAL'
+        e = str(e).strip().upper()
+        return e if e in ESTADOS_VALIDOS else 'PREJUDICIAL'
+
     agregados = 0
+    actualizados = 0
+
     for row in ws.iter_rows(min_row=header_row + 1):
         razon = get_col(row, ['razón social', 'razon social', 'cliente / razón', 'cliente / razon', 'nombre', 'cliente'])
         if not razon:
@@ -766,55 +781,91 @@ def importar_excel():
         if not razon:
             continue
 
+        monto = float(get_col(row, ['monto', 'importe', 'deuda']) or 0)
+        observaciones = str(get_col(row, ['observ', 'nota']) or '').strip()
+        perspectiva = normalizar_perspectiva(get_col(row, ['perspectiva']))
+        estado = normalizar_estado(get_col(row, ['estado']))
+        cuit = str(get_col(row, ['cuit', 'dni']) or '').strip()
+        domicilio = str(get_col(row, ['domicilio', 'direccion', 'dirección']) or '').strip()
+        localidad = str(get_col(row, ['localidad']) or '').strip()
+        cp = str(get_col(row, ['cp', 'codigo postal', 'código']) or '').strip()
+        provincia = str(get_col(row, ['provincia']) or '').strip()
+
         # Verificar si ya existe
         idx_existente = next((i for i, c in enumerate(data['clientes']) if c['razon_social'].strip().upper() == razon.upper()), None)
 
         if idx_existente is not None:
-            # Actualizar solo los campos que vengan con valor en el Excel
             c = data['clientes'][idx_existente]
-            campos = {
-                'cuit': str(get_col(row, ['cuit', 'dni']) or '').strip(),
-                'domicilio': str(get_col(row, ['domicilio', 'direccion', 'dirección']) or '').strip(),
-                'localidad': str(get_col(row, ['localidad']) or '').strip(),
-                'cp': str(get_col(row, ['cp', 'codigo postal', 'código']) or '').strip(),
-                'provincia': str(get_col(row, ['provincia']) or '').strip(),
-                'observaciones': str(get_col(row, ['observ', 'nota']) or '').strip(),
-                'perspectiva': str(get_col(row, ['perspectiva']) or '').strip(),
-                'estado': str(get_col(row, ['estado']) or '').strip().upper(),
-            }
+            cid = c['id']
             actualizado = False
-            for campo, valor in campos.items():
-                if valor and not c.get(campo):  # Solo actualiza si el campo está vacío en la app
+
+            # Actualizar campos vacíos
+            for campo, valor in [('cuit', cuit), ('domicilio', domicilio), ('localidad', localidad),
+                                  ('cp', cp), ('provincia', provincia), ('perspectiva', perspectiva)]:
+                if valor and not c.get(campo):
                     data['clientes'][idx_existente][campo] = valor
                     actualizado = True
+
+            # Observaciones: agregar si hay nuevas
+            if observaciones and observaciones not in (c.get('observaciones') or ''):
+                obs_actual = c.get('observaciones') or ''
+                data['clientes'][idx_existente]['observaciones'] = (obs_actual + ' | ' + observaciones).strip(' |') if obs_actual else observaciones
+                actualizado = True
+
+            # Si hay monto nuevo, agregar como factura
+            if monto > 0:
+                if str(cid) not in data.get('facturas', {}):
+                    data.setdefault('facturas', {})[str(cid)] = []
+                nueva_factura = {
+                    'id': datetime.now().strftime('%Y%m%d%H%M%S%f') + str(cid),
+                    'numero': '',
+                    'monto': monto,
+                    'fecha_mora': '',
+                    'descripcion': f'Importado desde Excel {datetime.now().strftime("%d/%m/%Y")}'
+                }
+                data['facturas'][str(cid)].append(nueva_factura)
+                actualizado = True
+
             if actualizado:
-                agregados += 1  # Cuenta como procesado
+                actualizados += 1
             continue
 
+        # Cliente nuevo
         nuevo = {
             'id': data['next_id'],
             'razon_social': razon,
-            'cuit': str(get_col(row, ['cuit', 'dni']) or '').strip(),
-            'domicilio': str(get_col(row, ['domicilio', 'direccion', 'dirección']) or '').strip(),
-            'localidad': str(get_col(row, ['localidad']) or '').strip(),
-            'cp': str(get_col(row, ['cp', 'codigo postal', 'código']) or '').strip(),
-            'provincia': str(get_col(row, ['provincia']) or '').strip(),
-            'monto_original': float(get_col(row, ['monto', 'importe', 'deuda']) or 0),
+            'cuit': cuit,
+            'domicilio': domicilio,
+            'localidad': localidad,
+            'cp': cp,
+            'provincia': provincia,
+            'monto_original': monto,
             'intereses': 0,
-            'estado': str(get_col(row, ['estado']) or 'PREJUDICIAL').strip().upper() or 'PREJUDICIAL',
+            'estado': estado,
             'sub_estado': '',
             'fecha_gestion': '',
-            'observaciones': str(get_col(row, ['observ', 'nota']) or '').strip(),
-            'perspectiva': str(get_col(row, ['perspectiva']) or '').strip(),
+            'observaciones': observaciones,
+            'perspectiva': perspectiva,
         }
         data['clientes'].append(nuevo)
         data['historial'][str(nuevo['id'])] = []
-        data['facturas'][str(nuevo['id'])] = []
+        data.setdefault('facturas', {})[str(nuevo['id'])] = []
+
+        # Si tiene monto, crear factura
+        if monto > 0:
+            data['facturas'][str(nuevo['id'])].append({
+                'id': datetime.now().strftime('%Y%m%d%H%M%S%f') + str(nuevo['id']),
+                'numero': '',
+                'monto': monto,
+                'fecha_mora': '',
+                'descripcion': f'Importado desde Excel {datetime.now().strftime("%d/%m/%Y")}'
+            })
+
         data['next_id'] += 1
         agregados += 1
 
     save_data(data)
-    return jsonify({'ok': True, 'agregados': agregados, 'total': len(data['clientes'])})
+    return jsonify({'ok': True, 'agregados': agregados, 'actualizados': actualizados, 'total': len(data['clientes'])})
 
 @app.route('/exportar/carta/<int:cid>')
 @login_required
