@@ -830,6 +830,7 @@ function renderTabla(lista) {
         <div class="expand-tabs">
           <div class="expand-tab active" onclick="switchTab(${c.id}, 'datos', this)">👤 Datos</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
+          <div class="expand-tab" onclick="switchTab(${c.id}, 'archivos', this); cargarArchivos(${c.id})">📎 Archivos</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'pagos', this); cargarPagos(${c.id})">💰 Pagos</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'gestiones', this)">📝 Gestiones</div>
         </div>
@@ -864,6 +865,31 @@ function renderTabla(lista) {
           </div>
         </div>
 
+        <!-- FACTURAS -->
+        <div class="expand-section" id="sec-facturas-${c.id}">
+          <div class="facturas-form">
+            <input class="f-num" id="f-num-${c.id}" placeholder="N° Factura (opcional)">
+            <input class="f-monto" id="f-monto-${c.id}" type="number" placeholder="Monto ($)">
+            <input class="f-fecha" id="f-fecha-${c.id}" type="date" title="Fecha de mora">
+            <input class="f-desc" id="f-desc-${c.id}" placeholder="Descripción (opcional)">
+            <button class="btn-hist" onclick="agregarFactura(${c.id})">＋ Agregar</button>
+          </div>
+          <div id="facturas-list-${c.id}">
+            <span class="hist-empty">Cargando facturas...</span>
+          </div>
+        </div>
+
+        <!-- ARCHIVOS -->
+        <div class="expand-section" id="sec-archivos-${c.id}">
+          <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem">
+            <label class="btn-hist" style="cursor:pointer;font-size:0.78rem">
+              ＋ Adjuntar archivo
+              <input type="file" accept=".pdf,.doc,.docx,.jpg,.png" style="display:none" onchange="subirArchivo(${c.id}, this)">
+            </label>
+          </div>
+          <div id="archivos-list-${c.id}"><span class="hist-empty">Sin archivos adjuntos.</span></div>
+        </div>
+
         <!-- PAGOS -->
         <div class="expand-section" id="sec-pagos-${c.id}">
           <div class="pagos-form">
@@ -878,30 +904,6 @@ function renderTabla(lista) {
             <button class="btn-pago-total" onclick="registrarPago(${c.id}, 'total')">✅ Pago total</button>
           </div>
           <div id="pagos-list-${c.id}"><span class="hist-empty">Sin pagos registrados.</span></div>
-        </div>
-
-        <!-- FACTURAS -->
-        <div class="expand-section active" id="sec-facturas-${c.id}">
-          <div class="facturas-form">
-            <input class="f-num" id="f-num-${c.id}" placeholder="N° Factura">
-            <input class="f-monto" id="f-monto-${c.id}" type="number" placeholder="Monto ($)">
-            <input class="f-fecha" id="f-fecha-${c.id}" type="date" title="Fecha de mora">
-            <input class="f-desc" id="f-desc-${c.id}" placeholder="Descripción (opcional)">
-            <button class="btn-hist" onclick="agregarFactura(${c.id})">＋ Agregar</button>
-          </div>
-          <div id="facturas-list-${c.id}">
-            <span class="hist-empty">Cargando facturas...</span>
-          </div>
-          <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border)">
-            <div style="font-size:0.78rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.5rem">📎 Archivos adjuntos</div>
-            <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem">
-              <label class="btn-hist" style="cursor:pointer;font-size:0.78rem">
-                ＋ Adjuntar archivo
-                <input type="file" accept=".pdf,.doc,.docx,.jpg,.png" style="display:none" onchange="subirArchivo(${c.id}, this)">
-              </label>
-            </div>
-            <div id="archivos-list-${c.id}"><span class="hist-empty">Sin archivos adjuntos.</span></div>
-          </div>
         </div>
 
         <!-- GESTIONES -->
@@ -1111,7 +1113,6 @@ async function toggleHistorial(id) {
   const row = document.getElementById(`hist-row-${id}`);
   if (row.classList.toggle('open')) {
     await cargarFacturas(id);
-    await cargarArchivos(id);
     await cargarHistorial(id);
   }
 }
