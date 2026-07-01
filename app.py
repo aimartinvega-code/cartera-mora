@@ -551,6 +551,70 @@ def backup_descargar():
     return send_file(DATA_FILE, mimetype='application/json', as_attachment=True,
                      download_name=f'backup_cartera_{datetime.now().strftime("%Y%m%d_%H%M")}.json')
 
+@app.route('/exportar/excel')
+@login_required
+def exportar_excel():
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    data = load_data()
+    tasa = data.get('tasa_bna', 60.0)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Clientes'
+
+    headers = ['Cliente / Razón Social', 'CUIT / DNI', 'Monto Original', 'Estado',
+               'Perspectiva de Cobro', 'Observaciones', 'Domicilio', 'Localidad', 'CP', 'Provincia']
+
+    header_fill = PatternFill(start_color='1a2e4a', end_color='1a2e4a', fill_type='solid')
+    header_font = Font(color='FFFFFF', bold=True, size=11)
+
+    for col, h in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+
+    for i, c in enumerate(data['clientes'], start=2):
+        # Calcular monto total de facturas
+        facturas = data.get('facturas', {}).get(str(c['id']), [])
+        if facturas:
+            monto = sum(f.get('monto', 0) or 0 for f in facturas)
+        else:
+            monto = c.get('monto_original', 0) or 0
+
+        ws.cell(row=i, column=1, value=c.get('razon_social', ''))
+        ws.cell(row=i, column=2, value=c.get('cuit', ''))
+        ws.cell(row=i, column=3, value=monto)
+        ws.cell(row=i, column=4, value=c.get('estado', ''))
+        ws.cell(row=i, column=5, value=c.get('perspectiva', ''))
+        ws.cell(row=i, column=6, value=c.get('observaciones', ''))
+        ws.cell(row=i, column=7, value=c.get('domicilio', ''))
+        ws.cell(row=i, column=8, value=c.get('localidad', ''))
+        ws.cell(row=i, column=9, value=c.get('cp', ''))
+        ws.cell(row=i, column=10, value=c.get('provincia', ''))
+
+        # Fila alternada
+        if i % 2 == 0:
+            for col in range(1, 11):
+                ws.cell(row=i, column=col).fill = PatternFill(start_color='f0f4f8', end_color='f0f4f8', fill_type='solid')
+
+    # Anchos de columna
+    anchos = [32, 18, 18, 16, 18, 30, 25, 18, 8, 15]
+    for i, ancho in enumerate(anchos, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = ancho
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fecha = datetime.now().strftime('%Y%m%d')
+    return send_file(buf,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True,
+                     download_name=f'cartera_mora_{fecha}.xlsx')
+
 @app.route('/exportar/pdf/cliente/<int:cid>')
 @login_required
 def exportar_pdf_cliente(cid):
