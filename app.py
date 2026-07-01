@@ -347,6 +347,19 @@ def add_factura(cid):
     factura['total'] = factura['monto'] + factura['interes_calculado']
     return jsonify(factura)
 
+@app.route('/api/facturas/<int:cid>/<fid>/fecha', methods=['PUT'])
+@login_required
+def update_factura_fecha(cid, fid):
+    data = load_data()
+    body = request.json
+    facturas = data.get('facturas', {}).get(str(cid), [])
+    for f in facturas:
+        if f.get('id') == fid:
+            f['fecha_mora'] = body.get('fecha_mora', '')
+            break
+    save_data(data)
+    return jsonify({'ok': True})
+
 @app.route('/api/facturas/<int:cid>/<fid>', methods=['DELETE'])
 @admin_required
 def delete_factura(cid, fid):
