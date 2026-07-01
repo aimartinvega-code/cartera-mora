@@ -830,7 +830,6 @@ function renderTabla(lista) {
         <div class="expand-tabs">
           <div class="expand-tab active" onclick="switchTab(${c.id}, 'datos', this)">👤 Datos</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
-          <div class="expand-tab" onclick="switchTab(${c.id}, 'archivos', this); cargarArchivos(${c.id})">📎 Archivos</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'pagos', this); cargarPagos(${c.id})">💰 Pagos</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'gestiones', this)">📝 Gestiones</div>
         </div>
@@ -877,18 +876,20 @@ function renderTabla(lista) {
           <div id="facturas-list-${c.id}">
             <span class="hist-empty">Cargando facturas...</span>
           </div>
+          <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+            <div style="font-size:0.78rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.5rem">📎 Archivos adjuntos</div>
+            <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem">
+              <label class="btn-hist" style="cursor:pointer;font-size:0.78rem">
+                ＋ Adjuntar archivo
+                <input type="file" accept=".pdf,.doc,.docx,.jpg,.png" style="display:none" onchange="subirArchivo(${c.id}, this)">
+              </label>
+            </div>
+            <div id="archivos-list-${c.id}"><span class="hist-empty">Sin archivos adjuntos.</span></div>
+          </div>
         </div>
 
-        <!-- ARCHIVOS -->
-        <div class="expand-section" id="sec-archivos-${c.id}">
-          <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem">
-            <label class="btn-hist" style="cursor:pointer;font-size:0.78rem">
-              ＋ Adjuntar archivo
-              <input type="file" accept=".pdf,.doc,.docx,.jpg,.png" style="display:none" onchange="subirArchivo(${c.id}, this)">
-            </label>
-          </div>
-          <div id="archivos-list-${c.id}"><span class="hist-empty">Sin archivos adjuntos.</span></div>
-        </div>
+        <!-- ARCHIVOS (sección vacía para mantener compatibilidad) -->
+        <div class="expand-section" id="sec-archivos-${c.id}"></div>
 
         <!-- PAGOS -->
         <div class="expand-section" id="sec-pagos-${c.id}">
@@ -1111,9 +1112,18 @@ function switchTab(id, tab, el) {
 // ---- HISTORIAL ----
 async function toggleHistorial(id) {
   const row = document.getElementById(`hist-row-${id}`);
-  if (row.classList.toggle('open')) {
+  const isOpen = row.classList.contains('open');
+  // Cerrar todos los demás
+  document.querySelectorAll('.historial-row.open').forEach(r => {
+    if (r.id !== `hist-row-${id}`) r.classList.remove('open');
+  });
+  if (!isOpen) {
+    row.classList.add('open');
     await cargarFacturas(id);
+    await cargarArchivos(id);
     await cargarHistorial(id);
+  } else {
+    row.classList.remove('open');
   }
 }
 
