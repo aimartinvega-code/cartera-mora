@@ -233,12 +233,9 @@ def get_clientes():
         facturas = data.get('facturas', {}).get(str(c['id']), [])
         c2['facturas'] = facturas
         if facturas:
-            # Suma facturas + monto_original manual (si existe)
             mo_facturas = sum(f.get('monto', 0) or 0 for f in facturas)
             int_facturas = sum(calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa) for f in facturas)
-            mo_manual = c.get('monto_original', 0) or 0
-            # Si hay monto manual sin factura asociada, lo sumamos
-            c2['monto_original'] = mo_facturas + mo_manual
+            c2['monto_original'] = mo_facturas
             c2['intereses'] = int_facturas
         clientes.append(c2)
     return jsonify(clientes)
