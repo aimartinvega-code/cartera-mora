@@ -388,14 +388,25 @@ def get_pagos(cid):
 @login_required
 def add_pago(cid):
     data = load_data()
-    tasa = data.get('tasa_bna', 60.0)
     pago = request.json
     pago['id'] = datetime.now().strftime('%Y%m%d%H%M%S%f')
-    pago['fecha'] = datetime.now().strftime('%d/%m/%Y')
+    pago['fecha_registro'] = datetime.now().strftime('%d/%m/%Y')
     pago.setdefault('monto', 0)
-    pago.setdefault('tipo', 'parcial')  # 'parcial' o 'total'
-    pago.setdefault('descuenta_de', 'total')  # 'capital', 'intereses', 'total'
+    pago.setdefault('tipo', 'parcial')  # 'parcial', 'total', 'cheque'
+    pago.setdefault('descuenta_de', 'total')
     pago.setdefault('observacion', '')
+    pago.setdefault('fecha_cobro_cheque', '')  # Para cheques diferidos
+
+    # Determinar si el cheque ya venció o es futuro
+    if pago['tipo'] == 'cheque' and pago.get('fecha_cobro_cheque'):
+        try:
+            fecha_cheque = datetime.strptime(pago['fecha_cobro_cheque'], '%Y-%m-%d').date()
+            pago['cheque_cobrado'] = fecha_cheque <= date.today()
+        except:
+            pago['cheque_cobrado'] = False
+    
+    # La fecha visible es la de registro
+    pago['fecha'] = pago['fecha_registro']
 
     if 'pagos' not in data:
         data['pagos'] = {}
@@ -428,22 +439,55 @@ def delete_pago(cid, pid):
 def get_resumen():
     data = load_data()
     tasa = data.get('tasa_bna', 60.0)
+    hoy = date.today()
     resumen = {}
-    todos = ESTADOS + ['MEDIACION']
+    todos = ESTADOS + ['MEDIACION', 'MEDIACION CON ACUERDO', 'ACUERDO EXTRAJUDICIAL']
     for estado in todos:
         cs = [c for c in data['clientes'] if c['estado'] == estado]
         monto_total = 0
         adeudado_total = 0
+        pagado_total = 0
+        cheques_pendientes = 0
         for c in cs:
             facturas = data.get('facturas', {}).get(str(c['id']), [])
             if facturas:
-                mo, int_ = calcular_totales_cliente({'facturas': facturas}, tasa)
+                mo = sum(f.get('monto', 0) or 0 for f in facturas)
+                int_ = sum(calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa) for f in facturas)
             else:
                 mo = c.get('monto_original', 0) or 0
                 int_ = c.get('intereses', 0) or 0
+            
+            # Descontar pagos parciales y cheques cobrados
+            pagos = data.get('pagos', {}).get(str(c['id']), [])
+            pagado = 0
+            cheque_pend = 0
+            for p in pagos:
+                if p.get('tipo') in ('parcial', 'total'):
+                    pagado += p.get('monto', 0) or 0
+                elif p.get('tipo') == 'cheque':
+                    # Si la fecha del cheque ya pasó, lo cuenta como cobrado
+                    try:
+                        fc = datetime.strptime(p.get('fecha_cobro_cheque', ''), '%Y-%m-%d').date()
+                        if fc <= hoy:
+                            pagado += p.get('monto', 0) or 0
+                        else:
+                            cheque_pend += p.get('monto', 0) or 0
+                    except:
+                        pass
+
             monto_total += mo
-            adeudado_total += mo + int_
-        resumen[estado] = {'cantidad': len(cs), 'monto_original': monto_total, 'total_adeudado': adeudado_total}
+            adeudado_neto = max(0, (mo + int_) - pagado)
+            adeudado_total += adeudado_neto
+            pagado_total += pagado
+            cheques_pendientes += cheque_pend
+
+        resumen[estado] = {
+            'cantidad': len(cs),
+            'monto_original': monto_total,
+            'total_adeudado': adeudado_total,
+            'pagado': pagado_total,
+            'cheques_pendientes': cheques_pendientes
+        }
     return jsonify(resumen)
 
 # --- Eventos del calendario ---
