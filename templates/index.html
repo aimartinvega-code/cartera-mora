@@ -902,7 +902,7 @@ function renderTabla(lista) {
             </select>
             <input id="p-obs-${c.id}" placeholder="Observación (opcional)" style="flex:1;min-width:140px">
             <button class="btn-hist" onclick="registrarPago(${c.id}, 'parcial')">Registrar pago parcial</button>
-            <button class="btn-pago-total" onclick="registrarPago(${c.id}, 'total')">✅ Pago total</button>
+            <button class="btn-pago-total" onclick="prefillPagoTotal(${c.id}, ${(c.monto_original||0) + (c.intereses||0)})">✅ Pago total</button>
           </div>
           <div id="pagos-list-${c.id}"><span class="hist-empty">Sin pagos registrados.</span></div>
         </div>
@@ -1070,6 +1070,12 @@ function renderPagos(id, pagos) {
       </div>
     `).join('')}
   `;
+}
+
+function prefillPagoTotal(id, total) {
+  document.getElementById(`p-monto-${id}`).value = total || 0;
+  document.getElementById(`p-descuenta-${id}`).value = 'total';
+  registrarPago(id, 'total');
 }
 
 async function registrarPago(id, tipo) {
