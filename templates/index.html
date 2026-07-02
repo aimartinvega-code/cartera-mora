@@ -829,13 +829,14 @@ function renderTabla(lista) {
     if (c.perspectiva === 'Incobrable') tr.classList.add('incobrable-row');
     const mo = (c.monto_original || 0);
     const int_ = (c.intereses || 0);
-    const total = mo + int_;
+    const pagado = (c.pagado_parcial || 0);
+    const total = Math.max(0, mo + int_ - pagado);
     tr.innerHTML = `
       <td>${i + 1}</td>
       <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'razon_social', 'text')">${c.razon_social || ''}</span></td>
       <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'monto_original', 'number')">${fmt(mo)}</span></td>
       <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'intereses', 'number')">${fmt(int_)}</span></td>
-      <td class="monto">${fmt(total)}</td>
+      <td class="monto">${fmt(total)}${pagado > 0 ? `<span style="font-size:0.7rem;color:#16a34a;display:block">-${fmt(pagado)} pagado</span>` : ''}</td>
       <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'estado', ESTADOS)">${badgeEstado(c.estado, c)}</span></td>
       <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'fecha_gestion', 'text')">${c.fecha_gestion || '—'}</span></td>
       <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'perspectiva', PERSPECTIVAS)">${badgePersp(c.perspectiva)}</span></td>
