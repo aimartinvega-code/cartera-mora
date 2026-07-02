@@ -33,7 +33,7 @@ LOG_FILE = os.path.join(DATA_DIR, 'actividad.json')
 EVENTOS_FILE = os.path.join(DATA_DIR, 'eventos.json')
 os.makedirs(FILES_DIR, exist_ok=True)
 
-ESTADOS = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'COBRADO/CERRADO']
+ESTADOS = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'COBRADO/CERRADO', 'MEDIACION', 'MEDIACION CON ACUERDO', 'ACUERDO EXTRAJUDICIAL']
 PERSPECTIVAS = ['Alta', 'Media', 'Baja', 'Incobrable', '']
 
 # --- Log de actividad ---
