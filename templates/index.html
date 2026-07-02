@@ -617,7 +617,6 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
           <tr>
             <th>N°</th>
             <th>Cliente / Razón Social</th>
-            <th>CUIT / DNI</th>
             <th>Capital Adeudado</th>
             <th>Intereses</th>
             <th>Total Adeudado</th>
@@ -807,7 +806,6 @@ function renderTabla(lista) {
     tr.innerHTML = `
       <td>${i + 1}</td>
       <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'razon_social', 'text')">${c.razon_social || ''}</span></td>
-      <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'cuit', 'text')">${c.cuit || '—'}</span></td>
       <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'monto_original', 'number')">${fmt(mo)}</span></td>
       <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'intereses', 'number')">${fmt(int_)}</span></td>
       <td class="monto">${fmt(total)}</td>
@@ -835,7 +833,7 @@ function renderTabla(lista) {
     trH.classList.add('historial-row');
     trH.id = `hist-row-${c.id}`;
     trH.innerHTML = `
-      <td colspan="11" class="historial-cell">
+      <td colspan="10" class="historial-cell">
         <div class="expand-tabs">
           <div class="expand-tab active" onclick="switchTab(${c.id}, 'datos', this)">👤 Datos</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
