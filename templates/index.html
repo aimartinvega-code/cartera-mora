@@ -1500,7 +1500,7 @@ async function loadDashboard() {
   const totalCobrado = (r['COBRADO/CERRADO']?.monto_original || 0) +
     Object.values(r).reduce((s, d) => s + (d.pagado || 0), 0);
   const totalChequesPend = Object.values(r).reduce((s, d) => s + (d.cheques_pendientes || 0), 0);
-  const totalCartera = totalAdeudado + totalCobrado;
+  const totalCartera = totalAdeudado + totalCobrado + totalChequesPend;
   const pctRecupero = totalCartera > 0 ? Math.round(totalCobrado / totalCartera * 100) : 0;
 
   // Top 5 deudores
