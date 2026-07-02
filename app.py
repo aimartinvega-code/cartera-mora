@@ -668,7 +668,7 @@ def exportar_pdf_cliente(cid):
         ['Perspectiva de Cobro', cliente.get('perspectiva', '') or '—'],
         ['Última Gestión', cliente.get('fecha_gestion', '') or '—'],
         ['Observaciones', cliente.get('observaciones', '') or '—'],
-        ['Monto Original', fmt(mo_total)],
+        ['Capital Adeudado', fmt(mo_total)],
         ['Intereses acumulados', fmt(int_total)],
         ['TOTAL ADEUDADO', fmt(tot_total)],
     ]
@@ -1117,7 +1117,7 @@ def exportar_pdf():
     elements.append(Paragraph("INFORME DE ESTADO DE DEUDA — CARTERA EN MORA", titulo_style))
     elements.append(Paragraph(f"Generado el {datetime.now().strftime('%d/%m/%Y a las %H:%M')} hs · Tasa BNA: {tasa}% anual · Montos en ARS", subtitulo_style))
 
-    headers = ['N°', 'Cliente / Razón Social', 'Monto Original', 'Intereses', 'Total Adeudado', 'Estado', 'Última Gestión', 'Perspectiva', 'Observaciones']
+    headers = ['N°', 'Cliente / Razón Social', 'Capital Adeudado', 'Intereses', 'Total Adeudado', 'Estado', 'Última Gestión', 'Perspectiva', 'Observaciones']
     filas = [headers]
     total_mo = total_int = 0
     for i, c in enumerate(clientes):
