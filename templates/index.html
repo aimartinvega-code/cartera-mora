@@ -1680,30 +1680,47 @@ async function loadGraficos() {
   const res = await fetch('/api/resumen');
   const r = await res.json();
 
-  const estados = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'MEDIACION', 'COBRADO/CERRADO'];
-  const coloresEstado = ['#ca8a04','#dc2626','#ea580c','#7c3aed','#0891b2','#16a34a'];
+  const estados = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'MEDIACION', 'MEDIACION CON ACUERDO', 'ACUERDO EXTRAJUDICIAL', 'COBRADO/CERRADO'];
+  const coloresEstado = ['#ca8a04','#dc2626','#ea580c','#7c3aed','#0891b2','#059669','#6d28d9','#16a34a'];
+  const estadosFiltrados = estados.filter(e => (r[e]?.cantidad || 0) > 0);
+  const coloresFiltrados = estadosFiltrados.map(e => coloresEstado[estados.indexOf(e)]);
 
-  const montos = estados.map(e => Math.round((r[e]?.monto_original || 0) / 1000000));
-  const cantidades = estados.map(e => r[e]?.cantidad || 0);
+  const montos = estadosFiltrados.map(e => Math.round((r[e]?.total_adeudado || 0) / 1000000));
+  const cantidades = estadosFiltrados.map(e => r[e]?.cantidad || 0);
+
+  // Cheques pendientes por estado
+  const chequesPend = estadosFiltrados.map(e => Math.round((r[e]?.cheques_pendientes || 0) / 1000000));
+  const hayChequesData = chequesPend.some(v => v > 0);
 
   // Barras — montos por estado
   if (chartBarras) chartBarras.destroy();
   chartBarras = new Chart(document.getElementById('chart-barras'), {
     type: 'bar',
     data: {
-      labels: estados,
-      datasets: [{
-        label: 'Monto (millones ARS)',
-        data: montos,
-        backgroundColor: coloresEstado,
-        borderRadius: 6,
-        borderSkipped: false,
-      }]
+      labels: estadosFiltrados,
+      datasets: [
+        {
+          label: 'Total Adeudado (M)',
+          data: montos,
+          backgroundColor: coloresFiltrados,
+          borderRadius: 6,
+          borderSkipped: false,
+        },
+        ...(hayChequesData ? [{
+          label: 'Cheques Pendientes (M)',
+          data: chequesPend,
+          backgroundColor: 'rgba(202,138,4,0.4)',
+          borderColor: '#ca8a04',
+          borderWidth: 1.5,
+          borderRadius: 6,
+          borderSkipped: false,
+        }] : [])
+      ]
     },
     options: {
       responsive: true,
       plugins: {
-        legend: { display: false },
+        legend: { display: hayChequesData, position: 'top' },
         tooltip: {
           callbacks: {
             label: ctx => ` $ ${ctx.parsed.y.toLocaleString('es-AR')} M`
@@ -1711,11 +1728,7 @@ async function loadGraficos() {
         }
       },
       scales: {
-        y: {
-          beginAtZero: true,
-          ticks: { callback: v => `$${v}M` },
-          grid: { color: '#f1f5f9' }
-        },
+        y: { beginAtZero: true, ticks: { callback: v => `$${v}M` }, grid: { color: '#f1f5f9' } },
         x: { grid: { display: false } }
       }
     }
@@ -1744,15 +1757,8 @@ async function loadGraficos() {
     options: {
       responsive: true,
       plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { padding: 16, font: { size: 12 } }
-        },
-        tooltip: {
-          callbacks: {
-            label: ctx => ` ${ctx.label}: ${ctx.parsed} clientes`
-          }
-        }
+        legend: { position: 'bottom', labels: { padding: 16, font: { size: 12 } } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} clientes` } }
       }
     }
   });
@@ -1762,11 +1768,11 @@ async function loadGraficos() {
   chartCantidad = new Chart(document.getElementById('chart-cantidad'), {
     type: 'bar',
     data: {
-      labels: estados,
+      labels: estadosFiltrados,
       datasets: [{
         label: 'Clientes',
         data: cantidades,
-        backgroundColor: coloresEstado,
+        backgroundColor: coloresFiltrados,
         borderRadius: 5,
         borderSkipped: false,
       }]
@@ -1776,16 +1782,10 @@ async function loadGraficos() {
       responsive: true,
       plugins: {
         legend: { display: false },
-        tooltip: {
-          callbacks: { label: ctx => ` ${ctx.parsed.x} cliente${ctx.parsed.x !== 1 ? 's' : ''}` }
-        }
+        tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x} cliente${ctx.parsed.x !== 1 ? 's' : ''}` } }
       },
       scales: {
-        x: {
-          beginAtZero: true,
-          ticks: { stepSize: 1 },
-          grid: { color: '#f1f5f9' }
-        },
+        x: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
         y: { grid: { display: false } }
       }
     }
