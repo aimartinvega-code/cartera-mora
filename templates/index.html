@@ -380,6 +380,8 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
 /* COBRADO */
 tbody tr.cobrado-row { background: #f0fdf4 !important; }
 tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
+tbody tr.incobrable-row { background: #fff1f2 !important; }
+tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
 
 /* PAGOS */
 .pagos-form { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; align-items: flex-end; }
@@ -824,6 +826,7 @@ function renderTabla(lista) {
     const tr = document.createElement('tr');
     tr.dataset.id = c.id;
     if (c.estado === 'COBRADO/CERRADO') tr.classList.add('cobrado-row');
+    if (c.perspectiva === 'Incobrable') tr.classList.add('incobrable-row');
     const mo = (c.monto_original || 0);
     const int_ = (c.intereses || 0);
     const total = mo + int_;
