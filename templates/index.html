@@ -846,6 +846,10 @@ function renderTabla(lista) {
         <div class="expand-section active" id="sec-datos-${c.id}">
           <div class="datos-form">
             <div class="dato-row">
+              <label>CUIT / DNI</label>
+              <input id="d-cuit-${c.id}" value="${c.cuit || ''}" placeholder="XX-XXXXXXXX-X" onblur="guardarDato(${c.id}, 'cuit', this.value)">
+            </div>
+            <div class="dato-row">
               <label>Domicilio</label>
               <input id="d-dom-${c.id}" value="${c.domicilio || ''}" placeholder="Calle y número" onblur="guardarDato(${c.id}, 'domicilio', this.value)">
             </div>
