@@ -841,6 +841,7 @@ function renderTabla(lista) {
           <div class="expand-tab" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'pagos', this); cargarPagos(${c.id})">💰 Pagos</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'gestiones', this)">📝 Gestiones</div>
+          <div class="expand-tab" onclick="switchTab(${c.id}, 'acuerdo', this)">🤝 Acuerdo</div>
         </div>
 
         <!-- DATOS -->
@@ -870,9 +871,23 @@ function renderTabla(lista) {
               <label>Fecha Cobro</label>
               <input id="d-cobro-${c.id}" value="${c.fecha_cobro || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'fecha_cobro', this.value)">
             </div>
+          </div>
+        </div>
+
+        <!-- ACUERDO EXTRAJUDICIAL -->
+        <div class="expand-section" id="sec-acuerdo-${c.id}">
+          <div class="datos-form">
             <div class="dato-row">
-              <label>Fecha Acuerdo Extrajudicial</label>
-              <input type="date" id="d-acuerdo-${c.id}" value="${c.fecha_acuerdo || ''}" onblur="guardarDato(${c.id}, 'fecha_acuerdo', this.value)" title="Fecha de pago acordada en acuerdo extrajudicial">
+              <label>Fecha de pago acordada</label>
+              <input type="date" id="d-acuerdo-${c.id}" value="${c.fecha_acuerdo || ''}" onblur="guardarDato(${c.id}, 'fecha_acuerdo', this.value)">
+            </div>
+            <div class="dato-row">
+              <label>Monto acordado</label>
+              <input type="number" id="d-monto-acuerdo-${c.id}" value="${c.monto_acuerdo || ''}" placeholder="$ 0" onblur="guardarDato(${c.id}, 'monto_acuerdo', parseFloat(this.value)||0)">
+            </div>
+            <div class="dato-row" style="grid-column:1/-1">
+              <label>Condiciones del acuerdo</label>
+              <input id="d-cond-acuerdo-${c.id}" value="${c.condiciones_acuerdo || ''}" placeholder="Ej: 3 cuotas mensuales de $..." onblur="guardarDato(${c.id}, 'condiciones_acuerdo', this.value)">
             </div>
           </div>
         </div>
