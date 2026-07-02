@@ -227,6 +227,7 @@ def update_config():
 def get_clientes():
     data = load_data()
     tasa = data.get('tasa_bna', 60.0)
+    hoy = date.today()
     clientes = []
     for c in data['clientes']:
         c2 = dict(c)
@@ -237,6 +238,21 @@ def get_clientes():
             int_facturas = sum(calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa) for f in facturas)
             c2['monto_original'] = mo_facturas
             c2['intereses'] = int_facturas
+
+        # Descontar pagos parciales del total mostrado
+        pagos = data.get('pagos', {}).get(str(c['id']), [])
+        pagado = 0
+        for p in pagos:
+            if p.get('tipo') == 'parcial':
+                pagado += p.get('monto', 0) or 0
+            elif p.get('tipo') == 'cheque':
+                try:
+                    fc = datetime.strptime(p.get('fecha_cobro_cheque', ''), '%Y-%m-%d').date()
+                    if fc <= hoy:
+                        pagado += p.get('monto', 0) or 0
+                except:
+                    pass
+        c2['pagado_parcial'] = pagado
         clientes.append(c2)
     return jsonify(clientes)
 
