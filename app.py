@@ -614,6 +614,37 @@ def chequear_eventos():
                         except Exception:
                             pass
 
+    # Chequear fechas de acuerdo extrajudicial que vencen hoy o mañana
+    if RESEND_API_KEY and EMAIL_DESTINO:
+        for c in data['clientes']:
+            fecha_acuerdo = c.get('fecha_acuerdo', '')
+            if fecha_acuerdo and fecha_acuerdo in [hoy_str, manana_str]:
+                cuando = 'Hoy' if fecha_acuerdo == hoy_str else 'Mañana'
+                monto_acordado = c.get('monto_acuerdo', 0)
+                condiciones = c.get('condiciones_acuerdo', '')
+                try:
+                    requests.post(
+                        'https://api.resend.com/emails',
+                        headers={'Authorization': f'Bearer {RESEND_API_KEY}', 'Content-Type': 'application/json'},
+                        json={
+                            'from': EMAIL_FROM,
+                            'to': [EMAIL_DESTINO],
+                            'subject': f'[Cartera Mora] 🤝 Vencimiento de acuerdo — {c["razon_social"]} — {cuando}',
+                            'html': f"""
+                            <h2>🤝 Fecha de pago de acuerdo extrajudicial</h2>
+                            <p><strong>Cliente:</strong> {c['razon_social']}</p>
+                            <p><strong>Fecha acordada:</strong> {'/'.join(fecha_acuerdo.split('-')[::-1])}</p>
+                            <p><strong>Cuándo:</strong> {cuando}</p>
+                            {f"<p><strong>Monto acordado:</strong> $ {monto_acordado:,.0f}</p>" if monto_acordado else ''}
+                            {f"<p><strong>Condiciones:</strong> {condiciones}</p>" if condiciones else ''}
+                            """
+                        },
+                        timeout=10
+                    )
+                    enviados += 1
+                except Exception:
+                    pass
+
     save_data(data)
     return jsonify({'ok': True, 'enviados': enviados, 'fecha_chequeo': hoy_str})
 
