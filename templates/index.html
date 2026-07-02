@@ -1492,8 +1492,14 @@ async function loadDashboard() {
   const totalClientes = clientes.length;
   const cobrados = clientes.filter(c => c.estado === 'COBRADO/CERRADO');
   const activos = clientes.filter(c => c.estado !== 'COBRADO/CERRADO');
-  const totalAdeudado = activos.reduce((s, c) => s + (c.monto_original || 0) + (c.intereses || 0), 0);
-  const totalCobrado = cobrados.reduce((s, c) => s + (c.monto_original || 0), 0);
+
+  // Calcular totales desde el resumen del servidor (ya descuenta pagos)
+  const totalAdeudado = Object.entries(r)
+    .filter(([e]) => e !== 'COBRADO/CERRADO')
+    .reduce((s, [, d]) => s + (d.total_adeudado || 0), 0);
+  const totalCobrado = (r['COBRADO/CERRADO']?.monto_original || 0) +
+    Object.values(r).reduce((s, d) => s + (d.pagado || 0), 0);
+  const totalChequesPend = Object.values(r).reduce((s, d) => s + (d.cheques_pendientes || 0), 0);
   const totalCartera = totalAdeudado + totalCobrado;
   const pctRecupero = totalCartera > 0 ? Math.round(totalCobrado / totalCartera * 100) : 0;
 
@@ -1507,14 +1513,13 @@ async function loadDashboard() {
   activos.forEach(c => { if (perspMonto[c.perspectiva] !== undefined) perspMonto[c.perspectiva] += (c.monto_original||0)+(c.intereses||0); });
 
   const coloresEstado = { PREJUDICIAL: '#ca8a04', JUICIO: '#dc2626', SENTENCIA: '#ea580c', EJECUCION: '#7c3aed', MEDIACION: '#0891b2', 'MEDIACION CON ACUERDO': '#059669', 'ACUERDO EXTRAJUDICIAL': '#7c3aed', 'COBRADO/CERRADO': '#16a34a' };
-  const clasesEstado = { PREJUDICIAL: '', JUICIO: 'juicio', SENTENCIA: 'sentencia', EJECUCION: 'ejecucion', MEDIACION: 'mediacion', 'COBRADO/CERRADO': 'cobrado' };
 
   document.getElementById('dash-content').innerHTML = `
 
     <!-- KPIs PRINCIPALES -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem">
       <div style="background:var(--navy);color:#fff;border-radius:12px;padding:1.4rem 1.5rem;box-shadow:0 4px 16px rgba(26,46,74,0.25)">
-        <div style="font-size:0.72rem;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px">Total Adeudado</div>
+        <div style="font-size:0.72rem;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px">Total Adeudado Neto</div>
         <div style="font-size:1.6rem;font-weight:800;margin-top:0.3rem">${fmt(totalAdeudado)}</div>
         <div style="font-size:0.75rem;opacity:0.6;margin-top:0.2rem">${activos.length} clientes activos</div>
       </div>
@@ -1523,6 +1528,12 @@ async function loadDashboard() {
         <div style="font-size:1.6rem;font-weight:800;margin-top:0.3rem">${fmt(totalCobrado)}</div>
         <div style="font-size:0.75rem;opacity:0.8;margin-top:0.2rem">${cobrados.length} clientes cobrados</div>
       </div>
+      ${totalChequesPend > 0 ? `
+      <div style="background:#fef3c7;border:2px solid #fde68a;border-radius:12px;padding:1.4rem 1.5rem">
+        <div style="font-size:0.72rem;color:#92400e;text-transform:uppercase;letter-spacing:0.5px">Cheques Pendientes</div>
+        <div style="font-size:1.6rem;font-weight:800;color:#92400e;margin-top:0.3rem">${fmt(totalChequesPend)}</div>
+        <div style="font-size:0.75rem;color:#92400e;margin-top:0.2rem">a cobrar próximamente</div>
+      </div>` : ''}
       <div style="background:#fff;border:2px solid var(--border);border-radius:12px;padding:1.4rem 1.5rem">
         <div style="font-size:0.72rem;color:var(--slate);text-transform:uppercase;letter-spacing:0.5px">Tasa de Recupero</div>
         <div style="font-size:1.6rem;font-weight:800;color:var(--navy);margin-top:0.3rem">${pctRecupero}%</div>
@@ -1539,8 +1550,6 @@ async function loadDashboard() {
 
     <!-- ESTADOS + TOP 5 -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
-
-      <!-- Por estado -->
       <div style="background:#fff;border-radius:10px;padding:1.3rem;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
         <div style="font-size:0.82rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1rem">Por Estado Procesal</div>
         ${Object.entries(r).map(([estado, d]) => d.cantidad > 0 ? `
@@ -1552,12 +1561,13 @@ async function loadDashboard() {
             <div style="text-align:right">
               <span style="font-size:0.82rem;font-weight:700;color:var(--navy)">${d.cantidad}</span>
               <span style="font-size:0.75rem;color:var(--slate);margin-left:0.5rem">${fmt(d.total_adeudado)}</span>
+              ${d.pagado > 0 ? `<span style="font-size:0.7rem;color:#16a34a;margin-left:0.3rem">-${fmt(d.pagado)}</span>` : ''}
+              ${d.cheques_pendientes > 0 ? `<span style="font-size:0.7rem;color:#ca8a04;margin-left:0.3rem">🧾${fmt(d.cheques_pendientes)}</span>` : ''}
             </div>
           </div>
         ` : '').join('')}
       </div>
 
-      <!-- Top 5 deudores -->
       <div style="background:#fff;border-radius:10px;padding:1.3rem;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
         <div style="font-size:0.82rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1rem">Top 5 Mayores Deudores</div>
         ${top5.map((c, i) => {
