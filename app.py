@@ -465,13 +465,12 @@ def get_resumen():
                 if p.get('tipo') in ('parcial', 'total'):
                     pagado += p.get('monto', 0) or 0
                 elif p.get('tipo') == 'cheque':
-                    # Si la fecha del cheque ya pasó, lo cuenta como cobrado
                     try:
                         fc = datetime.strptime(p.get('fecha_cobro_cheque', ''), '%Y-%m-%d').date()
                         if fc <= hoy:
-                            pagado += p.get('monto', 0) or 0
+                            pagado += p.get('monto', 0) or 0  # Cheque ya vencido = cobrado
                         else:
-                            cheque_pend += p.get('monto', 0) or 0
+                            cheque_pend += p.get('monto', 0) or 0  # Cheque futuro = pendiente
                     except:
                         pass
 
