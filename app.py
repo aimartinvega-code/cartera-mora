@@ -559,14 +559,17 @@ def enviar_email_evento(evento, fecha_str, cuando):
 
 @app.route('/api/eventos/chequear', methods=['GET', 'POST'])
 def chequear_eventos():
-    """Ruta para ser llamada diariamente (cron) que revisa eventos de hoy y mañana"""
+    """Ruta para ser llamada diariamente (cron) que revisa eventos y cheques de hoy y mañana"""
     eventos = load_eventos()
+    data = load_data()
     hoy = date.today()
     manana = date.fromordinal(hoy.toordinal() + 1)
     hoy_str = hoy.strftime('%Y-%m-%d')
     manana_str = manana.strftime('%Y-%m-%d')
 
     enviados = 0
+
+    # Chequear eventos del calendario
     if hoy_str in eventos:
         for ev in eventos[hoy_str]:
             enviar_email_evento(ev, hoy.strftime('%d/%m/%Y'), 'Hoy')
@@ -576,6 +579,42 @@ def chequear_eventos():
             enviar_email_evento(ev, manana.strftime('%d/%m/%Y'), 'Mañana')
             enviados += 1
 
+    # Chequear cheques diferidos que vencen hoy o mañana
+    if RESEND_API_KEY and EMAIL_DESTINO:
+        for c in data['clientes']:
+            pagos = data.get('pagos', {}).get(str(c['id']), [])
+            for p in pagos:
+                if p.get('tipo') == 'cheque' and not p.get('cheque_cobrado'):
+                    fecha_cheque = p.get('fecha_cobro_cheque', '')
+                    if fecha_cheque in [hoy_str, manana_str]:
+                        cuando = 'Hoy' if fecha_cheque == hoy_str else 'Mañana'
+                        try:
+                            requests.post(
+                                'https://api.resend.com/emails',
+                                headers={'Authorization': f'Bearer {RESEND_API_KEY}', 'Content-Type': 'application/json'},
+                                json={
+                                    'from': EMAIL_FROM,
+                                    'to': [EMAIL_DESTINO],
+                                    'subject': f'[Cartera Mora] 🧾 Cheque a cobrar — {c["razon_social"]} — {cuando}',
+                                    'html': f"""
+                                    <h2>🧾 Cheque a cobrar</h2>
+                                    <p><strong>Cliente:</strong> {c['razon_social']}</p>
+                                    <p><strong>Monto:</strong> $ {p['monto']:,.0f}</p>
+                                    <p><strong>Fecha de cobro:</strong> {fecha_cheque.split('-')[::-1] and '/'.join(fecha_cheque.split('-')[::-1])}</p>
+                                    <p><strong>Cuándo:</strong> {cuando}</p>
+                                    {f"<p><strong>Observación:</strong> {p['observacion']}</p>" if p.get('observacion') else ''}
+                                    """
+                                },
+                                timeout=10
+                            )
+                            enviados += 1
+                            # Marcar cheque como cobrado si es hoy
+                            if fecha_cheque == hoy_str:
+                                p['cheque_cobrado'] = True
+                        except Exception:
+                            pass
+
+    save_data(data)
     return jsonify({'ok': True, 'enviados': enviados, 'fecha_chequeo': hoy_str})
 
 # --- Log de actividad ---
