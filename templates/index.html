@@ -925,13 +925,18 @@ function renderTabla(lista) {
         <div class="expand-section" id="sec-pagos-${c.id}">
           <div class="pagos-form">
             <input id="p-monto-${c.id}" type="number" placeholder="Monto ($)" style="width:140px">
+            <select id="p-tipo-${c.id}" onchange="toggleChequeDate(${c.id})">
+              <option value="parcial">💰 Pago parcial</option>
+              <option value="cheque">🧾 Cheque diferido</option>
+            </select>
             <select id="p-descuenta-${c.id}">
               <option value="total">Descuenta de capital + intereses</option>
               <option value="capital">Solo del capital</option>
               <option value="intereses">Solo de intereses</option>
             </select>
+            <input id="p-fecha-cheque-${c.id}" type="date" placeholder="Fecha del cheque" style="display:none" title="Fecha de cobro del cheque">
             <input id="p-obs-${c.id}" placeholder="Observación (opcional)" style="flex:1;min-width:140px">
-            <button class="btn-hist" onclick="registrarPago(${c.id}, 'parcial')">Registrar pago parcial</button>
+            <button class="btn-hist" onclick="registrarPago(${c.id}, document.getElementById('p-tipo-${c.id}').value)">Registrar</button>
             <button class="btn-pago-total" onclick="prefillPagoTotal(${c.id}, ${(c.monto_original||0) + (c.intereses||0)})">✅ Pago total</button>
           </div>
           <div id="pagos-list-${c.id}"><span class="hist-empty">Sin pagos registrados.</span></div>
@@ -1078,27 +1083,45 @@ async function cargarPagos(id) {
   renderPagos(id, pagos);
 }
 
+function toggleChequeDate(id) {
+  const tipo = document.getElementById(`p-tipo-${id}`).value;
+  const fechaInput = document.getElementById(`p-fecha-cheque-${id}`);
+  fechaInput.style.display = tipo === 'cheque' ? 'inline-block' : 'none';
+}
+
 function renderPagos(id, pagos) {
   const container = document.getElementById(`pagos-list-${id}`);
   if (!pagos.length) {
     container.innerHTML = '<span class="hist-empty">Sin pagos registrados.</span>';
     return;
   }
-  const totalPagado = pagos.reduce((s, p) => s + (p.monto || 0), 0);
+  const totalPagado = pagos.filter(p => p.tipo !== 'cheque' || p.cheque_cobrado).reduce((s, p) => s + (p.monto || 0), 0);
+  const totalChequesPend = pagos.filter(p => p.tipo === 'cheque' && !p.cheque_cobrado).reduce((s, p) => s + (p.monto || 0), 0);
   container.innerHTML = `
     <div style="margin-bottom:0.5rem;font-size:0.82rem;font-weight:700;color:var(--green)">
       Total pagado: ${fmt(totalPagado)}
+      ${totalChequesPend > 0 ? `<span style="color:#ca8a04;margin-left:1rem">🧾 Cheques pendientes: ${fmt(totalChequesPend)}</span>` : ''}
     </div>
-    ${pagos.map(p => `
-      <div class="hist-item" style="justify-content:space-between">
-        <span class="hist-fecha">${p.fecha}</span>
-        <span class="hist-tipo" style="color:${p.tipo === 'total' ? '#16a34a' : '#0369a1'}">${p.tipo === 'total' ? '✅ PAGO TOTAL' : '💰 Parcial'}</span>
-        <span style="font-weight:700">${fmt(p.monto)}</span>
-        <span style="color:var(--slate);font-size:0.75rem">${p.descuenta_de === 'total' ? 'Cap+Int' : p.descuenta_de}</span>
-        <span class="hist-nota">${p.observacion || '—'}</span>
-        ${IS_ADMIN ? `<button class="btn-icon delete" onclick="eliminarPago(${id}, '${p.id}')" title="Eliminar">🗑</button>` : ''}
-      </div>
-    `).join('')}
+    ${pagos.map(p => {
+      let icono, label, color;
+      if (p.tipo === 'total') { icono = '✅'; label = 'PAGO TOTAL'; color = '#16a34a'; }
+      else if (p.tipo === 'cheque') {
+        icono = '🧾'; color = p.cheque_cobrado ? '#16a34a' : '#ca8a04';
+        const fechaFmt = p.fecha_cobro_cheque ? p.fecha_cobro_cheque.split('-').reverse().join('/') : '—';
+        label = p.cheque_cobrado ? 'Cheque cobrado (' + fechaFmt + ')' : 'Cheque a cobrar el ' + fechaFmt;
+      }
+      else { icono = '💰'; label = 'Pago parcial'; color = '#0369a1'; }
+      return `
+        <div class="hist-item" style="justify-content:space-between">
+          <span class="hist-fecha">${p.fecha}</span>
+          <span class="hist-tipo" style="color:${color}">${icono} ${label}</span>
+          <span style="font-weight:700">${fmt(p.monto)}</span>
+          <span style="color:var(--slate);font-size:0.75rem">${p.descuenta_de === 'total' ? 'Cap+Int' : p.descuenta_de}</span>
+          <span class="hist-nota">${p.observacion || '—'}</span>
+          ${IS_ADMIN ? `<button class="btn-icon delete" onclick="eliminarPago(${id}, '${p.id}')" title="Eliminar">🗑</button>` : ''}
+        </div>
+      `;
+    }).join('')}
   `;
 }
 
@@ -1112,18 +1135,23 @@ async function registrarPago(id, tipo) {
   const monto = parseFloat(document.getElementById(`p-monto-${id}`).value) || 0;
   const descuenta_de = document.getElementById(`p-descuenta-${id}`).value;
   const observacion = document.getElementById(`p-obs-${id}`).value.trim();
+  const fechaInput = document.getElementById(`p-fecha-cheque-${id}`);
+  const fecha_cobro_cheque = fechaInput ? fechaInput.value : '';
   if (!monto) { toast('Ingresá un monto', 'error'); return; }
+  if (tipo === 'cheque' && !fecha_cobro_cheque) { toast('Ingresá la fecha del cheque', 'error'); return; }
   if (tipo === 'total' && !confirm('¿Confirmar PAGO TOTAL? El cliente pasará a estado COBRADO/CERRADO.')) return;
   await fetch(`/api/pagos/${id}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ monto, tipo, descuenta_de, observacion })
+    body: JSON.stringify({ monto, tipo, descuenta_de, observacion, fecha_cobro_cheque })
   });
   document.getElementById(`p-monto-${id}`).value = '';
   document.getElementById(`p-obs-${id}`).value = '';
+  if (fechaInput) fechaInput.value = '';
   await cargarPagos(id);
   await cargarClientes();
-  toast(tipo === 'total' ? '✅ Pago total registrado — cliente COBRADO' : 'Pago parcial registrado ✓', 'success');
+  const msg = tipo === 'total' ? '✅ Pago total registrado' : tipo === 'cheque' ? '🧾 Cheque registrado ✓' : '💰 Pago parcial registrado ✓';
+  toast(msg, 'success');
 }
 
 async function eliminarPago(cid, pid) {
