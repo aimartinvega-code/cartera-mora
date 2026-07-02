@@ -367,6 +367,13 @@ def delete_factura(cid, fid):
     tasa = data.get('tasa_bna', 60.0)
     facturas = data.get('facturas', {}).get(str(cid), [])
     data['facturas'][str(cid)] = [f for f in facturas if f.get('id') != fid]
+    # Recalcular monto_original con las facturas restantes
+    facturas_new = data['facturas'][str(cid)]
+    mo = sum(f.get('monto', 0) or 0 for f in facturas_new)
+    for c in data['clientes']:
+        if c['id'] == cid:
+            c['monto_original'] = mo
+            break
     save_data(data)
     return jsonify({'ok': True})
 
