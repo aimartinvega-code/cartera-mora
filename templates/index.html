@@ -139,11 +139,13 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
 .badge-EJECUCION { background: #ede9fe; color: #5b21b6; }
 .badge-COBRADO { background: #dcfce7; color: #14532d; }
 .badge-MEDIACION { background: #e0f2fe; color: #0c4a6e; }
+.badge-MEDIACION-CON-ACUERDO { background: #d1fae5; color: #065f46; }
+.badge-ACUERDO-EXTRAJUDICIAL { background: #ede9fe; color: #4c1d95; }
 
 .badge-perspectiva-Alta { background: #dcfce7; color: #15803d; }
 .badge-perspectiva-Media { background: #fef3c7; color: #92400e; }
 .badge-perspectiva-Baja { background: #fee2e2; color: #b91c1c; }
-.badge-perspectiva-Incobrable { background: #f1f5f9; color: #475569; }
+.badge-perspectiva-Incobrable { background: #fee2e2; color: #991b1b; }
 
 /* EDICION INLINE */
 .editable {
@@ -575,6 +577,8 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
         <option>SENTENCIA</option>
         <option>EJECUCION</option>
         <option>MEDIACION</option>
+        <option>MEDIACION CON ACUERDO</option>
+        <option>ACUERDO EXTRAJUDICIAL</option>
         <option>COBRADO/CERRADO</option>      </select>
       <select id="filtro-perspectiva" onchange="filtrarTabla()">
         <option value="">Todas las perspectivas</option>
@@ -724,7 +728,8 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
       <div class="form-row" style="margin:0"><label>Estado</label>
         <select id="m-estado">
           <option>PREJUDICIAL</option><option>JUICIO</option><option>SENTENCIA</option>
-          <option>EJECUCION</option><option>MEDIACION</option><option>COBRADO/CERRADO</option>
+          <option>EJECUCION</option><option>MEDIACION</option><option>MEDIACION CON ACUERDO</option>
+          <option>ACUERDO EXTRAJUDICIAL</option><option>COBRADO/CERRADO</option>
         </select>
       </div>
       <div class="form-row" style="margin:0"><label>Perspectiva</label>
@@ -755,7 +760,7 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
 <div class="toast" id="toast"></div>
 
 <script>
-const ESTADOS = ['PREJUDICIAL','JUICIO','SENTENCIA','EJECUCION','MEDIACION','COBRADO/CERRADO'];
+const ESTADOS = ['PREJUDICIAL','JUICIO','SENTENCIA','EJECUCION','MEDIACION','MEDIACION CON ACUERDO','ACUERDO EXTRAJUDICIAL','COBRADO/CERRADO'];
 const PERSPECTIVAS = ['','Alta','Media','Baja','Incobrable'];
 const TIPOS_GESTION = ['Llamado telefónico','WhatsApp','Email','Carta documento','Visita','Reunión','Nota interna','Otro'];
 const IS_ADMIN = {{ 'true' if role == 'admin' else 'false' }};
@@ -768,9 +773,13 @@ function fmt(n) {
   return '$ ' + Number(n).toLocaleString('es-AR');
 }
 
-function badgeEstado(estado) {
-  const key = estado === 'COBRADO/CERRADO' ? 'COBRADO' : estado;
-  return `<span class="badge badge-${key}">${estado}</span>`;
+function badgeEstado(estado, cliente) {
+  const key = estado === 'COBRADO/CERRADO' ? 'COBRADO' : estado.replace(/ /g, '-');
+  let texto = estado;
+  if (estado === 'ACUERDO EXTRAJUDICIAL' && cliente && cliente.fecha_acuerdo) {
+    texto = `ACUERDO EXTRAJUDICIAL · ${cliente.fecha_acuerdo}`;
+  }
+  return `<span class="badge badge-${key}">${texto}</span>`;
 }
 
 function badgePersp(p) {
@@ -802,7 +811,7 @@ function renderTabla(lista) {
       <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'monto_original', 'number')">${fmt(mo)}</span></td>
       <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'intereses', 'number')">${fmt(int_)}</span></td>
       <td class="monto">${fmt(total)}</td>
-      <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'estado', ESTADOS)">${badgeEstado(c.estado)}</span></td>
+      <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'estado', ESTADOS)">${badgeEstado(c.estado, c)}</span></td>
       <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'fecha_gestion', 'text')">${c.fecha_gestion || '—'}</span></td>
       <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'perspectiva', PERSPECTIVAS)">${badgePersp(c.perspectiva)}</span></td>
       <td>
@@ -860,6 +869,10 @@ function renderTabla(lista) {
             <div class="dato-row">
               <label>Fecha Cobro</label>
               <input id="d-cobro-${c.id}" value="${c.fecha_cobro || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'fecha_cobro', this.value)">
+            </div>
+            <div class="dato-row">
+              <label>Fecha Acuerdo Extrajudicial</label>
+              <input type="date" id="d-acuerdo-${c.id}" value="${c.fecha_acuerdo || ''}" onblur="guardarDato(${c.id}, 'fecha_acuerdo', this.value)" title="Fecha de pago acordada en acuerdo extrajudicial">
             </div>
           </div>
         </div>
@@ -1448,7 +1461,7 @@ async function loadDashboard() {
   const perspMonto = { Alta: 0, Media: 0, Baja: 0, Incobrable: 0 };
   activos.forEach(c => { if (perspMonto[c.perspectiva] !== undefined) perspMonto[c.perspectiva] += (c.monto_original||0)+(c.intereses||0); });
 
-  const coloresEstado = { PREJUDICIAL: '#ca8a04', JUICIO: '#dc2626', SENTENCIA: '#ea580c', EJECUCION: '#7c3aed', MEDIACION: '#0891b2', 'COBRADO/CERRADO': '#16a34a' };
+  const coloresEstado = { PREJUDICIAL: '#ca8a04', JUICIO: '#dc2626', SENTENCIA: '#ea580c', EJECUCION: '#7c3aed', MEDIACION: '#0891b2', 'MEDIACION CON ACUERDO': '#059669', 'ACUERDO EXTRAJUDICIAL': '#7c3aed', 'COBRADO/CERRADO': '#16a34a' };
   const clasesEstado = { PREJUDICIAL: '', JUICIO: 'juicio', SENTENCIA: 'sentencia', EJECUCION: 'ejecucion', MEDIACION: 'mediacion', 'COBRADO/CERRADO': 'cobrado' };
 
   document.getElementById('dash-content').innerHTML = `
