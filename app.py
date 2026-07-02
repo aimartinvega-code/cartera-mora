@@ -457,22 +457,23 @@ def get_resumen():
                 mo = c.get('monto_original', 0) or 0
                 int_ = c.get('intereses', 0) or 0
             
-            # Descontar pagos parciales y cheques cobrados
+            # Solo descontar pagos para clientes activos (no COBRADO/CERRADO)
             pagos = data.get('pagos', {}).get(str(c['id']), [])
             pagado = 0
             cheque_pend = 0
-            for p in pagos:
-                if p.get('tipo') in ('parcial', 'total'):
-                    pagado += p.get('monto', 0) or 0
-                elif p.get('tipo') == 'cheque':
-                    try:
-                        fc = datetime.strptime(p.get('fecha_cobro_cheque', ''), '%Y-%m-%d').date()
-                        if fc <= hoy:
-                            pagado += p.get('monto', 0) or 0  # Cheque ya vencido = cobrado
-                        else:
-                            cheque_pend += p.get('monto', 0) or 0  # Cheque futuro = pendiente
-                    except:
-                        pass
+            if estado != 'COBRADO/CERRADO':
+                for p in pagos:
+                    if p.get('tipo') in ('parcial',):
+                        pagado += p.get('monto', 0) or 0
+                    elif p.get('tipo') == 'cheque':
+                        try:
+                            fc = datetime.strptime(p.get('fecha_cobro_cheque', ''), '%Y-%m-%d').date()
+                            if fc <= hoy:
+                                pagado += p.get('monto', 0) or 0
+                            else:
+                                cheque_pend += p.get('monto', 0) or 0
+                        except:
+                            pass
 
             monto_total += mo
             adeudado_neto = max(0, (mo + int_) - pagado)
