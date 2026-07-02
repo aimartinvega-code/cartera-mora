@@ -711,6 +711,30 @@ tbody tr.cobrado-row:hover { background: #dcfce7 !important; }
   </div>
 </div>
 
+<!-- MODAL DETALLE CLIENTES -->
+<div class="modal-overlay" id="detalle-overlay">
+  <div class="modal" style="max-width:700px;max-height:85vh;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <h2 id="detalle-titulo" style="font-size:1rem"></h2>
+      <button onclick="cerrarDetalle()" style="background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--slate)">✕</button>
+    </div>
+    <div id="detalle-total" style="font-size:0.82rem;color:var(--slate);margin-bottom:0.75rem"></div>
+    <div style="overflow-y:auto;flex:1">
+      <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+        <thead style="background:var(--navy);color:#fff;position:sticky;top:0">
+          <tr>
+            <th style="padding:0.5rem 0.75rem;text-align:left">Cliente</th>
+            <th style="padding:0.5rem 0.75rem;text-align:left">Estado</th>
+            <th style="padding:0.5rem 0.75rem;text-align:right">Monto</th>
+            <th style="padding:0.5rem 0.75rem;text-align:right">Detalle</th>
+          </tr>
+        </thead>
+        <tbody id="detalle-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL NUEVO CLIENTE -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal" style="max-width:580px;max-height:90vh;overflow-y:auto">
@@ -1520,21 +1544,21 @@ async function loadDashboard() {
 
     <!-- KPIs PRINCIPALES -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem">
-      <div style="background:var(--navy);color:#fff;border-radius:12px;padding:1.4rem 1.5rem;box-shadow:0 4px 16px rgba(26,46,74,0.25)">
+      <div style="background:var(--navy);color:#fff;border-radius:12px;padding:1.4rem 1.5rem;box-shadow:0 4px 16px rgba(26,46,74,0.25);cursor:pointer" onclick="abrirDetalle('adeudado')">
         <div style="font-size:0.72rem;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px">Total Adeudado Neto</div>
         <div style="font-size:1.6rem;font-weight:800;margin-top:0.3rem">${fmt(totalAdeudado)}</div>
-        <div style="font-size:0.75rem;opacity:0.6;margin-top:0.2rem">${activos.length} clientes activos</div>
+        <div style="font-size:0.75rem;opacity:0.6;margin-top:0.2rem">${activos.length} clientes activos · click para ver</div>
       </div>
-      <div style="background:#16a34a;color:#fff;border-radius:12px;padding:1.4rem 1.5rem;box-shadow:0 4px 16px rgba(22,163,74,0.25)">
+      <div style="background:#16a34a;color:#fff;border-radius:12px;padding:1.4rem 1.5rem;box-shadow:0 4px 16px rgba(22,163,74,0.25);cursor:pointer" onclick="abrirDetalle('cobrado')">
         <div style="font-size:0.72rem;opacity:0.8;text-transform:uppercase;letter-spacing:0.5px">Total Cobrado</div>
         <div style="font-size:1.6rem;font-weight:800;margin-top:0.3rem">${fmt(totalCobrado)}</div>
-        <div style="font-size:0.75rem;opacity:0.8;margin-top:0.2rem">${cobrados.length} clientes cobrados</div>
+        <div style="font-size:0.75rem;opacity:0.8;margin-top:0.2rem">${cobrados.length} clientes cobrados · click para ver</div>
       </div>
       ${totalChequesPend > 0 ? `
-      <div style="background:#fef3c7;border:2px solid #fde68a;border-radius:12px;padding:1.4rem 1.5rem">
+      <div style="background:#fef3c7;border:2px solid #fde68a;border-radius:12px;padding:1.4rem 1.5rem;cursor:pointer" onclick="abrirDetalle('cheques')">
         <div style="font-size:0.72rem;color:#92400e;text-transform:uppercase;letter-spacing:0.5px">Cheques Pendientes</div>
         <div style="font-size:1.6rem;font-weight:800;color:#92400e;margin-top:0.3rem">${fmt(totalChequesPend)}</div>
-        <div style="font-size:0.75rem;color:#92400e;margin-top:0.2rem">a cobrar próximamente</div>
+        <div style="font-size:0.75rem;color:#92400e;margin-top:0.2rem">a cobrar próximamente · click para ver</div>
       </div>` : ''}
       <div style="background:#fff;border:2px solid var(--border);border-radius:12px;padding:1.4rem 1.5rem">
         <div style="font-size:0.72rem;color:var(--slate);text-transform:uppercase;letter-spacing:0.5px">Tasa de Recupero</div>
@@ -1845,13 +1869,64 @@ async function loadGraficos() {
   });
 }
 
-// ---- INIT ----
-document.getElementById('modal-overlay').addEventListener('click', e => {
-  if (e.target === e.currentTarget) cerrarModal();
+document.getElementById('detalle-overlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) cerrarDetalle();
 });
-document.getElementById('obs-overlay').addEventListener('click', e => {
-  if (e.target === e.currentTarget) cerrarObservaciones();
-});
+
+// ---- DETALLE CLIENTES ----
+function cerrarDetalle() {
+  document.getElementById('detalle-overlay').classList.remove('open');
+}
+
+async function abrirDetalle(tipo) {
+  const res = await fetch('/api/resumen');
+  const r = await res.json();
+  const hoy = new Date();
+
+  let titulo, clientes_filtrados, getDetalle, getMonto;
+
+  if (tipo === 'adeudado') {
+    titulo = '📋 Clientes con deuda activa';
+    clientes_filtrados = clientes.filter(c => c.estado !== 'COBRADO/CERRADO');
+    getMonto = c => (c.monto_original || 0) + (c.intereses || 0);
+    getDetalle = c => `Capital: ${fmt(c.monto_original || 0)} · Int: ${fmt(c.intereses || 0)}`;
+  } else if (tipo === 'cobrado') {
+    titulo = '✅ Clientes cobrados';
+    clientes_filtrados = clientes.filter(c => c.estado === 'COBRADO/CERRADO');
+    getMonto = c => c.monto_original || 0;
+    getDetalle = c => c.fecha_cobro ? `Cobrado: ${c.fecha_cobro}` : '—';
+  } else if (tipo === 'cheques') {
+    titulo = '🧾 Cheques pendientes de cobro';
+    // Buscar clientes con cheques pendientes
+    const resPagos = await Promise.all(
+      clientes.map(c => fetch(`/api/pagos/${c.id}`).then(r => r.json()).then(p => ({ id: c.id, pagos: p })))
+    );
+    const chequesPorCliente = {};
+    resPagos.forEach(({ id, pagos }) => {
+      const pendientes = pagos.filter(p => p.tipo === 'cheque' && !p.cheque_cobrado);
+      if (pendientes.length) chequesPorCliente[id] = pendientes;
+    });
+    clientes_filtrados = clientes.filter(c => chequesPorCliente[c.id]);
+    getMonto = c => chequesPorCliente[c.id].reduce((s, p) => s + (p.monto || 0), 0);
+    getDetalle = c => chequesPorCliente[c.id].map(p => `${p.fecha_cobro_cheque ? p.fecha_cobro_cheque.split('-').reverse().join('/') : '—'}: ${fmt(p.monto)}`).join(' · ');
+  }
+
+  const totalMonto = clientes_filtrados.reduce((s, c) => s + getMonto(c), 0);
+  clientes_filtrados.sort((a, b) => getMonto(b) - getMonto(a));
+
+  document.getElementById('detalle-titulo').textContent = titulo;
+  document.getElementById('detalle-total').textContent = `${clientes_filtrados.length} clientes · Total: ${fmt(totalMonto)}`;
+  document.getElementById('detalle-tbody').innerHTML = clientes_filtrados.map((c, i) => `
+    <tr style="border-bottom:1px solid var(--border);background:${i%2===0?'#fff':'#f8fafc'}">
+      <td style="padding:0.5rem 0.75rem;font-weight:600">${c.razon_social}</td>
+      <td style="padding:0.5rem 0.75rem">${badgeEstado(c.estado, c)}</td>
+      <td style="padding:0.5rem 0.75rem;text-align:right;font-weight:700">${fmt(getMonto(c))}</td>
+      <td style="padding:0.5rem 0.75rem;font-size:0.75rem;color:var(--slate)">${getDetalle(c)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" style="padding:1rem;text-align:center;color:var(--muted)">Sin clientes</td></tr>';
+
+  document.getElementById('detalle-overlay').classList.add('open');
+}
 cargarClientes();
 cargarTasa();
 </script>
