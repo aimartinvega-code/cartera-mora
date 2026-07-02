@@ -1740,6 +1740,7 @@ async function loadGraficos() {
   const perspCount = { Alta: 0, Media: 0, Baja: 0, Incobrable: 0 };
   clientes.forEach(c => { if (perspCount[c.perspectiva] !== undefined) perspCount[c.perspectiva]++; });
   const perspData = perspectivas.map(p => perspCount[p]);
+  const totalPersp = perspData.reduce((s, v) => s + v, 0);
 
   if (chartTorta) chartTorta.destroy();
   chartTorta = new Chart(document.getElementById('chart-torta'), {
@@ -1758,12 +1759,39 @@ async function loadGraficos() {
       responsive: true,
       plugins: {
         legend: { position: 'bottom', labels: { padding: 16, font: { size: 12 } } },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} clientes` } }
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const pct = totalPersp > 0 ? Math.round(ctx.parsed / totalPersp * 100) : 0;
+              return ` ${ctx.label}: ${ctx.parsed} clientes (${pct}%)`;
+            }
+          }
+        }
       }
-    }
+    },
+    plugins: [{
+      id: 'doughnutLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx, data } = chart;
+        chart.getDatasetMeta(0).data.forEach((arc, i) => {
+          const value = data.datasets[0].data[i];
+          if (!value) return;
+          const pct = totalPersp > 0 ? Math.round(value / totalPersp * 100) : 0;
+          const { x, y } = arc.tooltipPosition();
+          ctx.save();
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 11px Segoe UI, system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${pct}%`, x, y);
+          ctx.restore();
+        });
+      }
+    }]
   });
 
-  // Barras horizontales — cantidad por estado
+  // Barras horizontales — cantidad por estado con porcentajes
+  const totalClientes = cantidades.reduce((s, v) => s + v, 0);
   if (chartCantidad) chartCantidad.destroy();
   chartCantidad = new Chart(document.getElementById('chart-cantidad'), {
     type: 'bar',
@@ -1782,15 +1810,39 @@ async function loadGraficos() {
       responsive: true,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x} cliente${ctx.parsed.x !== 1 ? 's' : ''}` } }
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const pct = totalClientes > 0 ? Math.round(ctx.parsed.x / totalClientes * 100) : 0;
+              return ` ${ctx.parsed.x} cliente${ctx.parsed.x !== 1 ? 's' : ''} (${pct}%)`;
+            }
+          }
+        }
       },
       scales: {
         x: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
         y: { grid: { display: false } }
       }
-    }
+    },
+    plugins: [{
+      id: 'barLabels',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        chart.getDatasetMeta(0).data.forEach((bar, i) => {
+          const value = cantidades[i];
+          if (!value) return;
+          const pct = totalClientes > 0 ? Math.round(value / totalClientes * 100) : 0;
+          ctx.save();
+          ctx.fillStyle = '#475569';
+          ctx.font = '11px Segoe UI, system-ui, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${value} (${pct}%)`, bar.x + 6, bar.y);
+          ctx.restore();
+        });
+      }
+    }]
   });
-}
 
 // ---- INIT ----
 document.getElementById('modal-overlay').addEventListener('click', e => {
