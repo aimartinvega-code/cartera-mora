@@ -1497,10 +1497,12 @@ async function loadDashboard() {
   const totalAdeudado = Object.entries(r)
     .filter(([e]) => e !== 'COBRADO/CERRADO')
     .reduce((s, [, d]) => s + (d.total_adeudado || 0), 0);
-  const totalCobrado = (r['COBRADO/CERRADO']?.monto_original || 0) +
-    Object.values(r).reduce((s, d) => s + (d.pagado || 0), 0);
+  const totalCobrado = (r['COBRADO/CERRADO']?.monto_original || 0);
+  const totalPagadoParcial = Object.entries(r)
+    .filter(([e]) => e !== 'COBRADO/CERRADO')
+    .reduce((s, [, d]) => s + (d.pagado || 0), 0);
   const totalChequesPend = Object.values(r).reduce((s, d) => s + (d.cheques_pendientes || 0), 0);
-  const totalCartera = totalAdeudado + totalCobrado + totalChequesPend;
+  const totalCartera = totalAdeudado + totalCobrado + totalPagadoParcial + totalChequesPend;
   const pctRecupero = totalCartera > 0 ? Math.round(totalCobrado / totalCartera * 100) : 0;
 
   // Top 5 deudores
