@@ -1627,7 +1627,7 @@ async function loadDashboard() {
           { key: 'Baja', color: '#ea580c', bg: '#fde8d0' },
           { key: 'Incobrable', color: '#dc2626', bg: '#fee2e2' }
         ].map(p => `
-          <div style="background:${p.bg};border-radius:8px;padding:1rem;text-align:center">
+          <div style="background:${p.bg};border-radius:8px;padding:1rem;text-align:center;cursor:pointer" onclick="abrirDetallePerspectiva('${p.key}')">
             <div style="font-size:1.8rem;font-weight:800;color:${p.color}">${perspCount[p.key]}</div>
             <div style="font-size:0.75rem;font-weight:700;color:${p.color};margin-top:0.2rem">${p.key}</div>
             <div style="font-size:0.72rem;color:${p.color};opacity:0.8;margin-top:0.2rem">${fmt(perspMonto[p.key])}</div>
@@ -1877,6 +1877,26 @@ document.getElementById('detalle-overlay').addEventListener('click', e => {
 });
 
 // ---- DETALLE CLIENTES ----
+function abrirDetallePerspectiva(perspectiva) {
+  const iconos = { Alta: '🟢', Media: '🟡', Baja: '🟠', Incobrable: '🔴' };
+  const lista = clientes.filter(c => c.perspectiva === perspectiva && c.estado !== 'COBRADO/CERRADO');
+  lista.sort((a, b) => ((b.monto_original||0)+(b.intereses||0)) - ((a.monto_original||0)+(a.intereses||0)));
+  const totalMonto = lista.reduce((s, c) => s + (c.monto_original||0) + (c.intereses||0), 0);
+
+  document.getElementById('detalle-titulo').textContent = `${iconos[perspectiva] || ''} Perspectiva ${perspectiva}`;
+  document.getElementById('detalle-total').textContent = `${lista.length} clientes · Total adeudado: ${fmt(totalMonto)}`;
+  document.getElementById('detalle-tbody').innerHTML = lista.map((c, i) => `
+    <tr style="border-bottom:1px solid var(--border);background:${i%2===0?'#fff':'#f8fafc'}">
+      <td style="padding:0.5rem 0.75rem;font-weight:600">${c.razon_social}</td>
+      <td style="padding:0.5rem 0.75rem">${badgeEstado(c.estado, c)}</td>
+      <td style="padding:0.5rem 0.75rem;text-align:right;font-weight:700">${fmt((c.monto_original||0)+(c.intereses||0))}</td>
+      <td style="padding:0.5rem 0.75rem;font-size:0.75rem;color:var(--slate)">Capital: ${fmt(c.monto_original||0)}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" style="padding:1rem;text-align:center;color:var(--muted)">Sin clientes</td></tr>';
+
+  document.getElementById('detalle-overlay').classList.add('open');
+}
+
 function cerrarDetalle() {
   document.getElementById('detalle-overlay').classList.remove('open');
 }
