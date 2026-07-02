@@ -1534,7 +1534,11 @@ async function loadDashboard() {
   const pctRecupero = totalCartera > 0 ? Math.round(totalCobrado / totalCartera * 100) : 0;
 
   // Top 5 deudores
-  const top5 = [...activos].sort((a, b) => ((b.monto_original||0)+(b.intereses||0)) - ((a.monto_original||0)+(a.intereses||0))).slice(0, 5);
+  const top5 = [...activos].sort((a, b) => {
+    const totalA = Math.max(0, (a.monto_original||0)+(a.intereses||0)-(a.pagado_parcial||0));
+    const totalB = Math.max(0, (b.monto_original||0)+(b.intereses||0)-(b.pagado_parcial||0));
+    return totalB - totalA;
+  }).slice(0, 5);
 
   // Perspectiva
   const perspCount = { Alta: 0, Media: 0, Baja: 0, Incobrable: 0 };
@@ -1912,8 +1916,8 @@ async function abrirDetalle(tipo) {
   if (tipo === 'adeudado') {
     titulo = '📋 Clientes con deuda activa';
     clientes_filtrados = clientes.filter(c => c.estado !== 'COBRADO/CERRADO');
-    getMonto = c => (c.monto_original || 0) + (c.intereses || 0);
-    getDetalle = c => `Capital: ${fmt(c.monto_original || 0)} · Int: ${fmt(c.intereses || 0)}`;
+    getMonto = c => Math.max(0, (c.monto_original || 0) + (c.intereses || 0) - (c.pagado_parcial || 0));
+    getDetalle = c => `Capital: ${fmt(c.monto_original || 0)} · Int: ${fmt(c.intereses || 0)}${c.pagado_parcial > 0 ? ` · Pagado: -${fmt(c.pagado_parcial)}` : ''}`;
   } else if (tipo === 'cobrado') {
     titulo = '✅ Clientes cobrados';
     clientes_filtrados = clientes.filter(c => c.estado === 'COBRADO/CERRADO');
