@@ -1377,7 +1377,7 @@ async function cargarTasa() {
 
 async function guardarTasa() {
   const tasa = parseFloat(document.getElementById('tasa-input').value);
-  if (!tasa || tasa <= 0) { toast('Ingresá una tasa válida', 'error'); return; }
+  if (isNaN(tasa) || tasa < 0) { toast('Ingresá una tasa válida', 'error'); return; }
   await fetch('/api/config', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
