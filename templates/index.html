@@ -1750,8 +1750,9 @@ async function loadGraficos() {
   const hayChequesData = chequesPend.some(v => v > 0);
 
   // Barras — montos por estado
-  if (chartBarras) chartBarras.destroy();
-  chartBarras = new Chart(document.getElementById('chart-barras'), {
+  if (chartBarras) { chartBarras.destroy(); chartBarras = null; }
+  const ctx1 = document.getElementById('chart-barras').getContext('2d');
+  chartBarras = new Chart(ctx1, {
     type: 'bar',
     data: {
       labels: estadosFiltrados,
@@ -1799,8 +1800,9 @@ async function loadGraficos() {
   const perspData = perspectivas.map(p => perspCount[p]);
   const totalPersp = perspData.reduce((s, v) => s + v, 0);
 
-  if (chartTorta) chartTorta.destroy();
-  chartTorta = new Chart(document.getElementById('chart-torta'), {
+  if (chartTorta) { chartTorta.destroy(); chartTorta = null; }
+  const ctx2 = document.getElementById('chart-torta').getContext('2d');
+  chartTorta = new Chart(ctx2, {
     type: 'doughnut',
     data: {
       labels: perspectivas,
@@ -1849,8 +1851,9 @@ async function loadGraficos() {
 
   // Barras horizontales — cantidad por estado con porcentajes
   const totalClientes = cantidadesFiltradas.reduce((s, v) => s + v, 0);
-  if (chartCantidad) chartCantidad.destroy();
-  chartCantidad = new Chart(document.getElementById('chart-cantidad'), {
+  if (chartCantidad) { chartCantidad.destroy(); chartCantidad = null; }
+  const ctx3 = document.getElementById('chart-cantidad').getContext('2d');
+  chartCantidad = new Chart(ctx3, {
     type: 'bar',
     data: {
       labels: estadosFiltrados,
