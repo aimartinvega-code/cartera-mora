@@ -1845,7 +1845,7 @@ async function loadGraficos() {
   });
 
   // Barras horizontales — cantidad por estado con porcentajes
-  const totalClientes = cantidades.reduce((s, v) => s + v, 0);
+  const totalClientes = cantidadesFiltradas.reduce((s, v) => s + v, 0);
   if (chartCantidad) chartCantidad.destroy();
   chartCantidad = new Chart(document.getElementById('chart-cantidad'), {
     type: 'bar',
