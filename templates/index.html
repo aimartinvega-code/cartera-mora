@@ -1548,6 +1548,24 @@ async function loadDashboard() {
 
   const coloresEstado = { PREJUDICIAL: '#ca8a04', JUICIO: '#dc2626', SENTENCIA: '#ea580c', EJECUCION: '#7c3aed', MEDIACION: '#0891b2', 'MEDIACION CON ACUERDO': '#059669', 'ACUERDO EXTRAJUDICIAL': '#7c3aed', 'COBRADO/CERRADO': '#16a34a' };
 
+  // Agrupar etapa judicial
+  const estadosJudiciales = ['JUICIO', 'SENTENCIA', 'EJECUCION', 'MEDIACION', 'MEDIACION CON ACUERDO', 'ACUERDO EXTRAJUDICIAL'];
+  const judicial = { cantidad: 0, total_adeudado: 0, pagado: 0, cheques_pendientes: 0 };
+  estadosJudiciales.forEach(e => {
+    if (r[e]) {
+      judicial.cantidad += r[e].cantidad || 0;
+      judicial.total_adeudado += r[e].total_adeudado || 0;
+      judicial.pagado += r[e].pagado || 0;
+      judicial.cheques_pendientes += r[e].cheques_pendientes || 0;
+    }
+  });
+  const rAgrupado = {
+    'PREJUDICIAL': r['PREJUDICIAL'] || { cantidad: 0, total_adeudado: 0, pagado: 0, cheques_pendientes: 0 },
+    'ETAPA JUDICIAL': judicial,
+    'COBRADO/CERRADO': r['COBRADO/CERRADO'] || { cantidad: 0, total_adeudado: 0, pagado: 0, cheques_pendientes: 0 }
+  };
+  const coloresAgrupado = { 'PREJUDICIAL': '#ca8a04', 'ETAPA JUDICIAL': '#1a2e4a', 'COBRADO/CERRADO': '#16a34a' };
+
   document.getElementById('dash-content').innerHTML = `
 
     <!-- KPIs PRINCIPALES -->
@@ -1586,10 +1604,10 @@ async function loadDashboard() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem">
       <div style="background:#fff;border-radius:10px;padding:1.3rem;box-shadow:0 1px 4px rgba(0,0,0,0.07)">
         <div style="font-size:0.82rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1rem">Por Estado Procesal</div>
-        ${Object.entries(r).map(([estado, d]) => d.cantidad > 0 ? `
+        ${Object.entries(rAgrupado).map(([estado, d]) => d.cantidad > 0 ? `
           <div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border)">
             <div style="display:flex;align-items:center;gap:0.5rem">
-              <div style="width:10px;height:10px;border-radius:50%;background:${coloresEstado[estado] || '#94a3b8'}"></div>
+              <div style="width:10px;height:10px;border-radius:50%;background:${coloresAgrupado[estado] || '#94a3b8'}"></div>
               <span style="font-size:0.82rem;font-weight:600">${estado}</span>
             </div>
             <div style="text-align:right">
@@ -1712,16 +1730,20 @@ async function loadGraficos() {
   const res = await fetch('/api/resumen');
   const r = await res.json();
 
-  const estados = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'MEDIACION', 'MEDIACION CON ACUERDO', 'ACUERDO EXTRAJUDICIAL', 'COBRADO/CERRADO'];
-  const coloresEstado = ['#ca8a04','#dc2626','#ea580c','#7c3aed','#0891b2','#059669','#6d28d9','#16a34a'];
-  const estadosFiltrados = estados.filter(e => (r[e]?.cantidad || 0) > 0);
-  const coloresFiltrados = estadosFiltrados.map(e => coloresEstado[estados.indexOf(e)]);
+  const estadosJud = ['JUICIO', 'SENTENCIA', 'EJECUCION', 'MEDIACION', 'MEDIACION CON ACUERDO', 'ACUERDO EXTRAJUDICIAL'];
+  const montoJudicial = estadosJud.reduce((s, e) => s + (r[e]?.total_adeudado || 0), 0);
+  const cantJudicial = estadosJud.reduce((s, e) => s + (r[e]?.cantidad || 0), 0);
 
-  const montos = estadosFiltrados.map(e => Math.round((r[e]?.total_adeudado || 0) / 1000000));
-  const cantidades = estadosFiltrados.map(e => r[e]?.cantidad || 0);
+  const estadosFiltrados = ['PREJUDICIAL', 'ETAPA JUDICIAL', 'COBRADO/CERRADO'].filter(e => {
+    if (e === 'ETAPA JUDICIAL') return cantJudicial > 0;
+    return (r[e]?.cantidad || 0) > 0;
+  });
+  const coloresFiltrados = { 'PREJUDICIAL': '#ca8a04', 'ETAPA JUDICIAL': '#1a2e4a', 'COBRADO/CERRADO': '#16a34a' };
+  const montosFiltrados = estadosFiltrados.map(e => e === 'ETAPA JUDICIAL' ? Math.round(montoJudicial/1000000) : Math.round((r[e]?.total_adeudado||0)/1000000));
+  const cantidadesFiltradas = estadosFiltrados.map(e => e === 'ETAPA JUDICIAL' ? cantJudicial : (r[e]?.cantidad||0));
 
   // Cheques pendientes por estado
-  const chequesPend = estadosFiltrados.map(e => Math.round((r[e]?.cheques_pendientes || 0) / 1000000));
+  const chequesPend = estadosFiltrados.map(e => e === 'ETAPA JUDICIAL' ? Math.round(estadosJud.reduce((s,j) => s+(r[j]?.cheques_pendientes||0),0)/1000000) : Math.round((r[e]?.cheques_pendientes||0)/1000000));
   const hayChequesData = chequesPend.some(v => v > 0);
 
   // Barras — montos por estado
@@ -1733,8 +1755,8 @@ async function loadGraficos() {
       datasets: [
         {
           label: 'Total Adeudado (M)',
-          data: montos,
-          backgroundColor: coloresFiltrados,
+          data: montosFiltrados,
+          backgroundColor: estadosFiltrados.map(e => coloresFiltrados[e] || '#94a3b8'),
           borderRadius: 6,
           borderSkipped: false,
         },
@@ -1831,8 +1853,8 @@ async function loadGraficos() {
       labels: estadosFiltrados,
       datasets: [{
         label: 'Clientes',
-        data: cantidades,
-        backgroundColor: coloresFiltrados,
+        data: cantidadesFiltradas,
+        backgroundColor: estadosFiltrados.map(e => coloresFiltrados[e] || '#94a3b8'),
         borderRadius: 5,
         borderSkipped: false,
       }]
