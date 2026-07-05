@@ -1739,7 +1739,10 @@ async function loadGraficos() {
     return (r[e]?.cantidad || 0) > 0;
   });
   const coloresFiltrados = { 'PREJUDICIAL': '#ca8a04', 'ETAPA JUDICIAL': '#1a2e4a', 'COBRADO/CERRADO': '#16a34a' };
-  const montosFiltrados = estadosFiltrados.map(e => e === 'ETAPA JUDICIAL' ? Math.round(montoJudicial/1000000) : Math.round((r[e]?.total_adeudado||0)/1000000));
+  const montosFiltrados = estadosFiltrados.map(e => {
+    if (e === 'ETAPA JUDICIAL') return Math.round(estadosJud.reduce((s, j) => s + (r[j]?.monto_original || 0), 0) / 1000000);
+    return Math.round((r[e]?.monto_original || 0) / 1000000);
+  });
   const cantidadesFiltradas = estadosFiltrados.map(e => e === 'ETAPA JUDICIAL' ? cantJudicial : (r[e]?.cantidad||0));
 
   // Cheques pendientes por estado
