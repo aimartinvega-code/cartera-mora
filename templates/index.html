@@ -1749,45 +1749,78 @@ async function loadGraficos() {
   const chequesPend = estadosFiltrados.map(e => e === 'ETAPA JUDICIAL' ? Math.round(estadosJud.reduce((s,j) => s+(r[j]?.cheques_pendientes||0),0)/1000000) : Math.round((r[e]?.cheques_pendientes||0)/1000000));
   const hayChequesData = chequesPend.some(v => v > 0);
 
-  // Barras — montos por estado
+  // Barras — montos por estado con judicial apilado
   if (chartBarras) { chartBarras.destroy(); chartBarras = null; }
   const ctx1 = document.getElementById('chart-barras').getContext('2d');
+
+  const montoJuicio = Math.round((r['JUICIO']?.monto_original||0)/1000000);
+  const montoSentencia = Math.round((r['SENTENCIA']?.monto_original||0)/1000000);
+  const montoMediacion = Math.round(((r['MEDIACION']?.monto_original||0)+(r['MEDIACION CON ACUERDO']?.monto_original||0)+(r['ACUERDO EXTRAJUDICIAL']?.monto_original||0)+(r['EJECUCION']?.monto_original||0))/1000000);
+  const montoPrejudicial = Math.round((r['PREJUDICIAL']?.monto_original||0)/1000000);
+  const montoCobrado = Math.round((r['COBRADO/CERRADO']?.monto_original||0)/1000000);
+
+  const labelsBarras = ['PREJUDICIAL', 'ETAPA JUDICIAL', 'COBRADO/CERRADO'];
+
   chartBarras = new Chart(ctx1, {
     type: 'bar',
     data: {
-      labels: estadosFiltrados,
+      labels: labelsBarras,
       datasets: [
         {
-          label: 'Total Adeudado (M)',
-          data: montosFiltrados,
-          backgroundColor: estadosFiltrados.map(e => coloresFiltrados[e] || '#94a3b8'),
-          borderRadius: 6,
+          label: 'Juicio',
+          data: [0, montoJuicio, 0],
+          backgroundColor: '#dc2626',
+          borderRadius: 0,
           borderSkipped: false,
+          stack: 'judicial'
         },
-        ...(hayChequesData ? [{
-          label: 'Cheques Pendientes (M)',
-          data: chequesPend,
-          backgroundColor: 'rgba(202,138,4,0.4)',
-          borderColor: '#ca8a04',
-          borderWidth: 1.5,
-          borderRadius: 6,
+        {
+          label: 'Sentencia',
+          data: [0, montoSentencia, 0],
+          backgroundColor: '#ea580c',
+          borderRadius: 0,
           borderSkipped: false,
-        }] : [])
+          stack: 'judicial'
+        },
+        {
+          label: 'Mediación/Acuerdo',
+          data: [0, montoMediacion, 0],
+          backgroundColor: '#0891b2',
+          borderRadius: 4,
+          borderSkipped: false,
+          stack: 'judicial'
+        },
+        {
+          label: 'Prejudicial',
+          data: [montoPrejudicial, 0, 0],
+          backgroundColor: '#ca8a04',
+          borderRadius: 4,
+          borderSkipped: false,
+          stack: 'otros'
+        },
+        {
+          label: 'Cobrado',
+          data: [0, 0, montoCobrado],
+          backgroundColor: '#16a34a',
+          borderRadius: 4,
+          borderSkipped: false,
+          stack: 'otros'
+        },
       ]
     },
     options: {
       responsive: true,
       plugins: {
-        legend: { display: hayChequesData, position: 'top' },
+        legend: { display: true, position: 'top', labels: { font: { size: 11 } } },
         tooltip: {
           callbacks: {
-            label: ctx => ` $ ${ctx.parsed.y.toLocaleString('es-AR')} M`
+            label: ctx => ` ${ctx.dataset.label}: $ ${ctx.parsed.y.toLocaleString('es-AR')} M`
           }
         }
       },
       scales: {
-        y: { beginAtZero: true, ticks: { callback: v => `$${v}M` }, grid: { color: '#f1f5f9' } },
-        x: { grid: { display: false } }
+        y: { beginAtZero: true, stacked: true, ticks: { callback: v => `$${v}M` }, grid: { color: '#f1f5f9' } },
+        x: { stacked: true, grid: { display: false } }
       }
     }
   });
