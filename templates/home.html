@@ -155,20 +155,20 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1e33; min-
 // ---- KPIs ----
 async function cargarKPIs() {
   try {
-    const resClientes = await fetch('/api/clientes');
-    const clientes = await resClientes.json();
-    const activos = clientes.filter(c => c.estado !== 'COBRADO/CERRADO');
-    const cobrados = clientes.filter(c => c.estado === 'COBRADO/CERRADO');
-    const totalAdeudado = activos.reduce((s, c) => s + (c.monto_original||0) + (c.intereses||0), 0);
+    const [resClientes, resResumen] = await Promise.all([
+      fetch('/api/clientes').then(r => r.json()),
+      fetch('/api/resumen').then(r => r.json())
+    ]);
 
-    // Cobrado este mes
-    const hoy = new Date();
-    const mesActual = `${String(hoy.getMonth()+1).padStart(2,'0')}/${hoy.getFullYear()}`;
-    const cobradoMes = (await fetch('/api/pagos_mes').then(r => r.json()).catch(() => 0));
+    const cobrados = resClientes.filter(c => c.estado === 'COBRADO/CERRADO');
+    const activos = resClientes.filter(c => c.estado !== 'COBRADO/CERRADO');
 
-    const totalCobrado = cobrados.reduce((s, c) => s + (c.monto_original||0), 0);
-    const totalCartera = totalAdeudado + totalCobrado;
-    const pct = totalCartera > 0 ? Math.round(totalCobrado / totalCartera * 100) : 0;
+    // Usar resumen del servidor (ya descuenta pagos parciales)
+    const totalAdeudado = Object.entries(resResumen)
+      .filter(([e]) => e !== 'COBRADO/CERRADO')
+      .reduce((s, [, d]) => s + (d.total_adeudado || 0), 0);
+    const totalCobrado = resResumen['COBRADO/CERRADO']?.monto_original || 0;
+
     function fmt(v) { return '$ ' + Number(v).toLocaleString('es-AR'); }
 
     document.getElementById('kpi-strip').innerHTML = `
@@ -183,13 +183,8 @@ async function cargarKPIs() {
         <div class="kpi-sub">${cobrados.length} clientes cobrados</div>
       </div>
       <div class="kpi-card gris">
-        <div class="kpi-label">Tasa de Recupero</div>
-        <div class="kpi-val">${pct}%</div>
-        <div class="kpi-sub">del total de cartera</div>
-      </div>
-      <div class="kpi-card gris">
         <div class="kpi-label">Total Clientes</div>
-        <div class="kpi-val">${clientes.length}</div>
+        <div class="kpi-val">${resClientes.length}</div>
         <div class="kpi-sub">${activos.length} activos · ${cobrados.length} cobrados</div>
       </div>
     `;
