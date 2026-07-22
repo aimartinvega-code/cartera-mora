@@ -388,9 +388,15 @@ def get_facturas(cid):
     data = load_data()
     tasa = data.get('tasa_bna', 60.0)
     facturas = data.get('facturas', {}).get(str(cid), [])
-    # Agregar interes calculado a cada factura
+    # Obtener pagos parciales para calcular interés por tramos
+    pagos = data.get('pagos', {}).get(str(cid), [])
+    pagos_parciales = [p for p in pagos if p.get('tipo') == 'parcial']
     for f in facturas:
-        f['interes_calculado'] = calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa)
+        tasa_f = f.get('tasa') if f.get('tasa') is not None else tasa
+        f['tasa_propia'] = f.get('tasa')
+        f['interes_calculado'] = calcular_interes_factura(
+            f.get('monto', 0), f.get('fecha_mora', ''), tasa_f, pagos_parciales
+        )
         f['total'] = (f.get('monto', 0) or 0) + f['interes_calculado']
     return jsonify(facturas)
 
