@@ -1234,7 +1234,7 @@ function renderFacturas(id, facturas) {
           <th>Fecha Mora</th>
           <th class="num">Días</th>
           <th class="num">Monto</th>
-          <th class="num" style="width:80px">Tasa %</th>
+          <th class="num" style="width:90px">Tasa % mens.</th>
           <th class="num">Interés</th>
           <th class="num">Total</th>
           <th></th>
@@ -1258,7 +1258,7 @@ function renderFacturas(id, facturas) {
                 value="${f.tasa_propia !== null && f.tasa_propia !== undefined ? f.tasa_propia : ''}"
                 placeholder="global"
                 style="width:65px;border:1px solid var(--border);border-radius:4px;padding:0.2rem 0.3rem;font-size:0.75rem;outline:none;text-align:right"
-                title="Tasa propia (dejar vacío para usar tasa global)"
+                title="Tasa mensual (ej: 5 = 5% mensual)"
                 onchange="actualizarTasaFactura(${id}, '${f.id}', this.value)">
             </td>
             <td class="num" style="color:#ca8a04">${fmt(f.interes_calculado)}</td>
