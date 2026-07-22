@@ -1368,39 +1368,7 @@ function exportarCarta(id) {
   window.open(`/exportar/carta/${id}`, '_blank');
 }
 
-// ---- TASA BNA ----
-function toggleTasaPopover() {
-  document.getElementById('tasa-popover').classList.toggle('open');
-}
-document.addEventListener('click', e => {
-  const wrap = document.querySelector('.tasa-popover-wrap');
-  if (wrap && !wrap.contains(e.target)) {
-    document.getElementById('tasa-popover').classList.remove('open');
-  }
-});
-
-async function cargarTasa() {
-  const res = await fetch('/api/config');
-  const cfg = await res.json();
-  document.getElementById('tasa-input').value = cfg.tasa_bna;
-  document.getElementById('tasa-display').textContent = cfg.tasa_bna;
-  document.getElementById('tasa-info').textContent = `Tasa diaria: ${(cfg.tasa_bna / 365).toFixed(4)}%`;
-}
-
-async function guardarTasa() {
-  const tasa = parseFloat(document.getElementById('tasa-input').value);
-  if (isNaN(tasa) || tasa < 0) { toast('Ingresá una tasa válida', 'error'); return; }
-  await fetch('/api/config', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tasa_bna: tasa })
-  });
-  document.getElementById('tasa-display').textContent = tasa;
-  document.getElementById('tasa-info').textContent = `Tasa diaria: ${(tasa / 365).toFixed(4)}%`;
-  await cargarClientes();
-  toast(`Tasa actualizada a ${tasa}% anual ✓`, 'success');
-  toggleTasaPopover();
-}
+// tasa global removida
 
 async function cargarHistorial(id) {
   const res = await fetch(`/api/historial/${id}`);
@@ -2029,7 +1997,6 @@ async function abrirDetalle(tipo) {
   document.getElementById('detalle-overlay').classList.add('open');
 }
 cargarClientes();
-cargarTasa();
 </script>
 </body>
 </html>
