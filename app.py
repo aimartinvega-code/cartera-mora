@@ -527,6 +527,8 @@ def get_resumen():
         cheques_pendientes = 0
         for c in cs:
             facturas = data.get('facturas', {}).get(str(c['id']), [])
+            # Solo descontar pagos para clientes activos (no COBRADO/CERRADO)
+            pagos = data.get('pagos', {}).get(str(c['id']), [])
             if facturas:
                 mo = sum(f.get('monto', 0) or 0 for f in facturas)
                 pagos_p = [p for p in pagos if p.get('tipo') == 'parcial']
@@ -534,9 +536,6 @@ def get_resumen():
             else:
                 mo = c.get('monto_original', 0) or 0
                 int_ = c.get('intereses', 0) or 0
-            
-            # Solo descontar pagos para clientes activos (no COBRADO/CERRADO)
-            pagos = data.get('pagos', {}).get(str(c['id']), [])
             pagado = 0
             cheque_pend = 0
             if estado != 'COBRADO/CERRADO':
