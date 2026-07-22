@@ -590,18 +590,7 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
         <option>Incobrable</option>
       </select>
 
-      <div class="tasa-popover-wrap">
-        <button class="btn-tasa-toggle" onclick="toggleTasaPopover()">⚡ Tasa: <span id="tasa-display">60</span>%</button>
-        <div class="tasa-popover" id="tasa-popover">
-          <label style="font-size:0.75rem;font-weight:700;color:var(--slate);display:block;margin-bottom:0.4rem">Tasa de interés anual</label>
-          <div style="display:flex;gap:0.4rem;align-items:center">
-            <input class="tasa-input" id="tasa-input" type="number" step="0.01" value="60">
-            <span style="font-size:0.8rem">% anual</span>
-          </div>
-          <div id="tasa-info" style="color:var(--slate);font-size:0.72rem;margin-top:0.3rem"></div>
-          <button class="btn-tasa" onclick="guardarTasa()">Actualizar</button>
-        </div>
-      </div>
+
 
       <button class="btn-add" onclick="abrirModal()">＋ Nuevo cliente</button>
       {% if role == 'admin' %}
