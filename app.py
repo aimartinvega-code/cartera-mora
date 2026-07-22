@@ -58,19 +58,56 @@ def log_actividad(accion, detalle='', cliente=''):
         pass
 
 # --- Calculo de intereses ---
-def calcular_interes_factura(monto, fecha_mora_str, tasa_anual, pagado_parcial=0):
-    """Interés simple sobre saldo neto: (monto - pagado_parcial) * tasa_diaria * dias"""
-    saldo = max(0, (monto or 0) - (pagado_parcial or 0))
-    if not fecha_mora_str or not saldo or tasa_anual is None:
+def calcular_interes_factura(monto, fecha_mora_str, tasa_anual, pagos_parciales=None):
+    """Interés simple en tramos según fecha de cada pago parcial.
+    
+    Tramo 1: desde fecha_mora hasta fecha del primer pago parcial → sobre capital original
+    Tramo 2: desde fecha del pago parcial hasta hoy → sobre saldo neto
+    Si hay múltiples pagos parciales, se calculan tramos sucesivos.
+    """
+    if not fecha_mora_str or not monto or tasa_anual is None:
         return 0
     try:
         fecha_mora = datetime.strptime(fecha_mora_str, '%Y-%m-%d').date()
         hoy = date.today()
-        dias = (hoy - fecha_mora).days
-        if dias <= 0:
+        if fecha_mora >= hoy:
             return 0
         tasa_diaria = tasa_anual / 365 / 100
-        return round(saldo * tasa_diaria * dias)
+        
+        # Ordenar pagos parciales por fecha
+        pagos = []
+        for p in (pagos_parciales or []):
+            try:
+                fecha_p = datetime.strptime(p.get('fecha_registro') or p.get('fecha', ''), '%d/%m/%Y').date()
+                pagos.append((fecha_p, p.get('monto', 0) or 0))
+            except:
+                pass
+        pagos.sort(key=lambda x: x[0])
+        
+        interes_total = 0
+        saldo_actual = monto or 0
+        fecha_desde = fecha_mora
+        
+        for fecha_pago, monto_pago in pagos:
+            if fecha_pago <= fecha_desde:
+                # Pago anterior a fecha mora, solo descontar
+                saldo_actual = max(0, saldo_actual - monto_pago)
+                continue
+            fecha_hasta = min(fecha_pago, hoy)
+            dias = (fecha_hasta - fecha_desde).days
+            if dias > 0 and saldo_actual > 0:
+                interes_total += saldo_actual * tasa_diaria * dias
+            saldo_actual = max(0, saldo_actual - monto_pago)
+            fecha_desde = fecha_pago
+            if fecha_desde >= hoy:
+                break
+        
+        # Tramo final: desde último pago hasta hoy
+        if fecha_desde < hoy and saldo_actual > 0:
+            dias = (hoy - fecha_desde).days
+            interes_total += saldo_actual * tasa_diaria * dias
+        
+        return round(interes_total)
     except Exception:
         return 0
 
@@ -255,12 +292,12 @@ def get_clientes():
 
         if facturas:
             mo_facturas = sum(f.get('monto', 0) or 0 for f in facturas)
-            # Calcular interés sobre saldo neto (capital - pagos parciales)
-            # usando tasa propia de cada factura o la global
+            # Calcular interés por tramos usando fechas de pagos parciales
+            pagos_parciales = [p for p in pagos if p.get('tipo') == 'parcial']
             int_facturas = 0
             for f in facturas:
                 tasa_f = f.get('tasa') if f.get('tasa') is not None else tasa
-                int_facturas += calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa_f, pagado)
+                int_facturas += calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa_f, pagos_parciales)
             c2['monto_original'] = mo_facturas
             c2['intereses'] = int_facturas
             # Pasar tasa de cada factura al frontend
@@ -485,7 +522,8 @@ def get_resumen():
             facturas = data.get('facturas', {}).get(str(c['id']), [])
             if facturas:
                 mo = sum(f.get('monto', 0) or 0 for f in facturas)
-                int_ = sum(calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa) for f in facturas)
+                pagos_p = [p for p in pagos if p.get('tipo') == 'parcial']
+                int_ = sum(calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), f.get('tasa') if f.get('tasa') is not None else tasa, pagos_p) for f in facturas)
             else:
                 mo = c.get('monto_original', 0) or 0
                 int_ = c.get('intereses', 0) or 0
