@@ -58,9 +58,10 @@ def log_actividad(accion, detalle='', cliente=''):
         pass
 
 # --- Calculo de intereses ---
-def calcular_interes_factura(monto, fecha_mora_str, tasa_anual):
-    """Interés simple: monto * tasa_diaria * dias"""
-    if not fecha_mora_str or not monto or not tasa_anual:
+def calcular_interes_factura(monto, fecha_mora_str, tasa_anual, pagado_parcial=0):
+    """Interés simple sobre saldo neto: (monto - pagado_parcial) * tasa_diaria * dias"""
+    saldo = max(0, (monto or 0) - (pagado_parcial or 0))
+    if not fecha_mora_str or not saldo or tasa_anual is None:
         return 0
     try:
         fecha_mora = datetime.strptime(fecha_mora_str, '%Y-%m-%d').date()
@@ -69,17 +70,21 @@ def calcular_interes_factura(monto, fecha_mora_str, tasa_anual):
         if dias <= 0:
             return 0
         tasa_diaria = tasa_anual / 365 / 100
-        return round(monto * tasa_diaria * dias)
+        return round(saldo * tasa_diaria * dias)
     except Exception:
         return 0
 
-def calcular_totales_cliente(cliente, tasa_anual):
-    """Calcula monto_original e intereses sumando todas las facturas"""
+def calcular_totales_cliente(cliente, tasa_anual_global):
+    """Calcula monto_original e intereses sumando todas las facturas.
+    Cada factura puede tener su propia tasa; si no, usa la global."""
     facturas = cliente.get('facturas', [])
     if not facturas:
         return cliente.get('monto_original', 0) or 0, cliente.get('intereses', 0) or 0
     monto_total = sum(f.get('monto', 0) or 0 for f in facturas)
-    intereses_total = sum(calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa_anual) for f in facturas)
+    intereses_total = 0
+    for f in facturas:
+        tasa = f.get('tasa') if f.get('tasa') is not None else tasa_anual_global
+        intereses_total += calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa)
     return monto_total, intereses_total
 
 # --- Persistencia ---
@@ -233,13 +238,7 @@ def get_clientes():
         c2 = dict(c)
         facturas = data.get('facturas', {}).get(str(c['id']), [])
         c2['facturas'] = facturas
-        if facturas:
-            mo_facturas = sum(f.get('monto', 0) or 0 for f in facturas)
-            int_facturas = sum(calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa) for f in facturas)
-            c2['monto_original'] = mo_facturas
-            c2['intereses'] = int_facturas
-
-        # Descontar pagos parciales del total mostrado
+        # Calcular pagos parciales primero
         pagos = data.get('pagos', {}).get(str(c['id']), [])
         pagado = 0
         for p in pagos:
@@ -253,6 +252,20 @@ def get_clientes():
                 except:
                     pass
         c2['pagado_parcial'] = pagado
+
+        if facturas:
+            mo_facturas = sum(f.get('monto', 0) or 0 for f in facturas)
+            # Calcular interés sobre saldo neto (capital - pagos parciales)
+            # usando tasa propia de cada factura o la global
+            int_facturas = 0
+            for f in facturas:
+                tasa_f = f.get('tasa') if f.get('tasa') is not None else tasa
+                int_facturas += calcular_interes_factura(f.get('monto', 0), f.get('fecha_mora', ''), tasa_f, pagado)
+            c2['monto_original'] = mo_facturas
+            c2['intereses'] = int_facturas
+            # Pasar tasa de cada factura al frontend
+            for f in facturas:
+                f['tasa_propia'] = f.get('tasa')
         clientes.append(c2)
     return jsonify(clientes)
 
@@ -371,7 +384,11 @@ def update_factura_fecha(cid, fid):
     facturas = data.get('facturas', {}).get(str(cid), [])
     for f in facturas:
         if f.get('id') == fid:
-            f['fecha_mora'] = body.get('fecha_mora', '')
+            if 'fecha_mora' in body:
+                f['fecha_mora'] = body.get('fecha_mora', '')
+            if 'tasa' in body:
+                val = body.get('tasa')
+                f['tasa'] = float(val) if val is not None and val != '' else None
             break
     save_data(data)
     return jsonify({'ok': True})
