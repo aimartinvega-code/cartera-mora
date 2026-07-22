@@ -1244,6 +1244,7 @@ function renderFacturas(id, facturas) {
           <th>Descripción</th>
           <th>Fecha Mora</th>
           <th class="num">Monto</th>
+          <th class="num" style="width:80px">Tasa %</th>
           <th class="num">Interés</th>
           <th class="num">Total</th>
           <th></th>
@@ -1261,14 +1262,22 @@ function renderFacturas(id, facturas) {
                 title="Click para editar la fecha de mora">
             </td>
             <td class="num">${fmt(f.monto)}</td>
+            <td class="num">
+              <input type="number" step="0.01" min="0"
+                value="${f.tasa_propia !== null && f.tasa_propia !== undefined ? f.tasa_propia : ''}"
+                placeholder="global"
+                style="width:65px;border:1px solid var(--border);border-radius:4px;padding:0.2rem 0.3rem;font-size:0.75rem;outline:none;text-align:right"
+                title="Tasa propia (dejar vacío para usar tasa global)"
+                onchange="actualizarTasaFactura(${id}, '${f.id}', this.value)">
+            </td>
             <td class="num" style="color:#ca8a04">${fmt(f.interes_calculado)}</td>
             <td class="num" style="font-weight:700">${fmt(f.total)}</td>
             <td><button class="btn-icon delete" onclick="eliminarFactura(${id}, '${f.id}')" title="Eliminar">🗑</button></td>
           </tr>
         `).join('')}
         <tr class="facturas-total">
-          <td colspan="3">TOTALES</td>
-          <td class="num">${fmt(totalMonto)}</td>
+          <td colspan="4">TOTALES</td>
+          <td></td>
           <td class="num" style="color:#ca8a04">${fmt(totalInt)}</td>
           <td class="num">${fmt(totalTot)}</td>
           <td></td>
@@ -1276,6 +1285,18 @@ function renderFacturas(id, facturas) {
       </tbody>
     </table>
   `;
+}
+
+async function actualizarTasaFactura(cid, fid, valor) {
+  const tasa = valor === '' ? null : parseFloat(valor);
+  await fetch(`/api/facturas/${cid}/${fid}/fecha`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tasa })
+  });
+  await cargarFacturas(cid);
+  await cargarClientes();
+  toast(tasa !== null ? `Tasa ${tasa}% aplicada a esta factura ✓` : 'Usando tasa global ✓', 'success');
 }
 
 async function actualizarFechaFactura(cid, fid, fecha) {
