@@ -58,21 +58,22 @@ def log_actividad(accion, detalle='', cliente=''):
         pass
 
 # --- Calculo de intereses ---
-def calcular_interes_factura(monto, fecha_mora_str, tasa_anual, pagos_parciales=None):
+def calcular_interes_factura(monto, fecha_mora_str, tasa_mensual, pagos_parciales=None):
     """Interés simple en tramos según fecha de cada pago parcial.
+    Tasa mensual: se convierte a diaria dividiendo por 30.
     
     Tramo 1: desde fecha_mora hasta fecha del primer pago parcial → sobre capital original
     Tramo 2: desde fecha del pago parcial hasta hoy → sobre saldo neto
     Si hay múltiples pagos parciales, se calculan tramos sucesivos.
     """
-    if not fecha_mora_str or not monto or tasa_anual is None:
+    if not fecha_mora_str or not monto or tasa_mensual is None:
         return 0
     try:
         fecha_mora = datetime.strptime(fecha_mora_str, '%Y-%m-%d').date()
         hoy = date.today()
         if fecha_mora >= hoy:
             return 0
-        tasa_diaria = tasa_anual / 365 / 100
+        tasa_diaria = tasa_mensual / 30 / 100
         
         # Ordenar pagos parciales por fecha
         pagos = []
