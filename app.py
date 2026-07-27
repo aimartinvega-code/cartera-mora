@@ -279,6 +279,7 @@ def get_clientes():
         # Calcular pagos parciales primero
         pagos = data.get('pagos', {}).get(str(c['id']), [])
         pagado = 0
+        cheque_pendiente = 0
         for p in pagos:
             if p.get('tipo') == 'parcial':
                 pagado += p.get('monto', 0) or 0
@@ -287,9 +288,12 @@ def get_clientes():
                     fc = datetime.strptime(p.get('fecha_cobro_cheque', ''), '%Y-%m-%d').date()
                     if fc <= hoy:
                         pagado += p.get('monto', 0) or 0
+                    else:
+                        cheque_pendiente += p.get('monto', 0) or 0
                 except:
                     pass
         c2['pagado_parcial'] = pagado
+        c2['cheque_pendiente'] = cheque_pendiente
 
         if facturas:
             mo_facturas = sum(f.get('monto', 0) or 0 for f in facturas)
