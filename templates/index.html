@@ -890,7 +890,7 @@ function renderTabla(lista) {
         ${chequePend > 0 ? `<span style="font-size:0.7rem;color:#ca8a04;display:block">🧾⏳ ${fmt(chequePend)}</span>` : ''}
       </td>
       <td style="position:relative">
-        <span onclick="toggleEstadoPopover(event, ${c.id}, '${c.estado}', '${c.sub_estado || ''}')" style="cursor:pointer">${badgeEstado(c.estado, c)}</span>
+        <span onclick="toggleEstadoPopover(event, ${c.id}, c.estado, c.sub_estado)" style="cursor:pointer">${badgeEstado(c.estado, c)}</span>
         <div id="estado-popover-${c.id}" class="datos-popover" style="display:none;min-width:260px">
           <div class="datos-popover-header">
             <strong>Cambiar estado</strong>
@@ -900,21 +900,21 @@ function renderTabla(lista) {
             <div>
               <label style="font-size:0.7rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:0.2rem">Etapa</label>
               <select id="estado-sel-${c.id}" onchange="actualizarSubestadoOpciones(${c.id})" style="width:100%;padding:0.4rem;border:1px solid var(--border);border-radius:5px;font-size:0.82rem">
-                ${ESTADOS.map(e => `<option value="${e}" ${e === '${c.estado}' ? 'selected' : ''}>${e}</option>`).join('')}
+                ${ESTADOS.map(e => '<option value="' + e + '" ' + (e === c.estado ? 'selected' : '') + '>' + e + '</option>').join('')}
               </select>
             </div>
             <div id="subestado-wrap-${c.id}">
               <label style="font-size:0.7rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:0.2rem">Sub-estado</label>
               <select id="subestado-sel-${c.id}" style="width:100%;padding:0.4rem;border:1px solid var(--border);border-radius:5px;font-size:0.82rem">
                 <option value="">— Sin sub-estado —</option>
-                ${(SUBESTADOS['${c.estado}'] || []).map(s => `<option value="${s}" ${s === '${c.sub_estado || ''}' ? 'selected' : ''}>${s}</option>`).join('')}
+                ${(SUBESTADOS[c.estado] || []).map(s => '<option value="' + s + '" ' + (s === (c.sub_estado || '') ? 'selected' : '') + '>' + s + '</option>').join('')}
               </select>
             </div>
             <button onclick="guardarEstadoYSubestado(${c.id})" style="padding:0.45rem;background:var(--navy);color:#fff;border:none;border-radius:6px;font-size:0.82rem;font-weight:600;cursor:pointer">Guardar</button>
           </div>
         </div>
       </td>
-      <td>${c.sub_estado ? `<span class="badge" style="background:#f1f5f9;color:#475569;font-size:0.72rem">${c.sub_estado}</span>` : '<span style="color:var(--muted);font-size:0.8rem">—</span>'}</td>
+      <td>${c.sub_estado ? '<span class="badge" style="background:#f1f5f9;color:#475569;font-size:0.72rem">' + c.sub_estado + '</span>' : '<span style="color:var(--muted);font-size:0.8rem">—</span>'}</td>
       <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'fecha_gestion', 'text')">${c.fecha_gestion || '—'}</span></td>
       <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'perspectiva', PERSPECTIVAS)">${badgePersp(c.perspectiva)}</span></td>
       <td>
