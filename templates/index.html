@@ -643,7 +643,6 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
             <th>Intereses</th>
             <th>Total Adeudado</th>
             <th>Etapa</th>
-            <th>Sub-estado</th>
             <th>Última Gestión</th>
             <th>Perspectiva</th>
             <th>Observaciones</th>
@@ -841,7 +840,7 @@ const ESTADOS = ['PREJUDICIAL','MEDIACION','JUICIO','ACUERDO EXTRAJUDICIAL','COB
 const SUBESTADOS = {
   'PREJUDICIAL': ['Comunicaciones', 'Carta Documento'],
   'MEDIACION': ['En proceso', 'Sin acuerdo', 'Con acuerdo'],
-  'JUICIO': ['En proceso', 'Sentencia', 'Ejecución de sentencia'],
+  'JUICIO': ['En proceso', 'Sentencia', 'Ejecucion de sentencia'],
   'COBRADO/CERRADO': [],
   'ACUERDO EXTRAJUDICIAL': [],
 };
@@ -919,9 +918,12 @@ function renderTabla(lista) {
         ${chequePend > 0 ? `<span style="font-size:0.7rem;color:#ca8a04;display:block">🧾⏳ ${fmt(chequePend)}</span>` : ''}
       </td>
       <td>
-        <span onclick="abrirModalEstado(${c.id}, '${c.estado}', '${(c.sub_estado||'').replace(/'/g, '')}')" style="cursor:pointer">${badgeEstado(c.estado, c)}</span>
+        <span onclick="abrirModalEstado(${c.id}, c.estado, c.sub_estado || '')" style="cursor:pointer">
+          ${badgeEstado(c.estado, c)}
+          ${c.sub_estado ? '<span style="display:block;font-size:0.68rem;color:var(--slate);margin-top:2px">' + c.sub_estado + '</span>' : ''}
+        </span>
       </td>
-      <td>${c.sub_estado ? '<span class="badge" style="background:#f1f5f9;color:#475569;font-size:0.72rem">' + c.sub_estado + '</span>' : '<span style="color:var(--muted);font-size:0.8rem">—</span>'}</td>
+
       <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'fecha_gestion', 'text')">${c.fecha_gestion || '—'}</span></td>
       <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'perspectiva', PERSPECTIVAS)">${badgePersp(c.perspectiva)}</span></td>
       <td>
@@ -945,7 +947,7 @@ function renderTabla(lista) {
     trH.classList.add('historial-row');
     trH.id = `hist-row-${c.id}`;
     trH.innerHTML = `
-      <td colspan="11" class="historial-cell">
+      <td colspan="10" class="historial-cell">
         <div class="expand-tabs">
           <div class="expand-tab active" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'pagos', this); cargarPagos(${c.id})">💰 Pagos</div>
