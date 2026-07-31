@@ -607,13 +607,10 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
     <div class="filtros">
       <input type="text" id="buscar" placeholder="🔍 Buscar cliente..." oninput="filtrarTabla()">
       <select id="filtro-estado" onchange="filtrarTabla()">
-        <option value="">Todos los estados</option>
+        <option value="">Todas las etapas</option>
         <option>PREJUDICIAL</option>
-        <option>JUICIO</option>
-        <option>SENTENCIA</option>
-        <option>EJECUCION</option>
         <option>MEDIACION</option>
-        <option>MEDIACION CON ACUERDO</option>
+        <option>JUICIO</option>
         <option>ACUERDO EXTRAJUDICIAL</option>
         <option>COBRADO/CERRADO</option>      </select>
       <select id="filtro-perspectiva" onchange="filtrarTabla()">
@@ -645,7 +642,8 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
             <th>Capital Adeudado</th>
             <th>Intereses</th>
             <th>Total Adeudado</th>
-            <th>Estado</th>
+            <th>Etapa</th>
+            <th>Sub-estado</th>
             <th>Última Gestión</th>
             <th>Perspectiva</th>
             <th>Observaciones</th>
@@ -775,9 +773,11 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
       <div class="form-row" style="margin:0"><label>Provincia</label><input id="m-provincia" placeholder="Provincia"></div>
       <div class="form-row" style="margin:0"><label>Estado</label>
         <select id="m-estado">
-          <option>PREJUDICIAL</option><option>JUICIO</option><option>SENTENCIA</option>
-          <option>EJECUCION</option><option>MEDIACION</option><option>MEDIACION CON ACUERDO</option>
-          <option>ACUERDO EXTRAJUDICIAL</option><option>COBRADO/CERRADO</option>
+          <option>PREJUDICIAL</option>
+          <option>MEDIACION</option>
+          <option>JUICIO</option>
+          <option>ACUERDO EXTRAJUDICIAL</option>
+          <option>COBRADO/CERRADO</option>
         </select>
       </div>
       <div class="form-row" style="margin:0"><label>Perspectiva</label>
@@ -808,7 +808,14 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
 <div class="toast" id="toast"></div>
 
 <script>
-const ESTADOS = ['PREJUDICIAL','JUICIO','SENTENCIA','EJECUCION','MEDIACION','MEDIACION CON ACUERDO','ACUERDO EXTRAJUDICIAL','COBRADO/CERRADO'];
+const ESTADOS = ['PREJUDICIAL','MEDIACION','JUICIO','ACUERDO EXTRAJUDICIAL','COBRADO/CERRADO'];
+const SUBESTADOS = {
+  'PREJUDICIAL': ['Comunicaciones', 'Carta Documento'],
+  'MEDIACION': ['En proceso', 'Sin acuerdo', 'Con acuerdo'],
+  'JUICIO': ['En proceso', 'Sentencia', 'Ejecución de sentencia'],
+  'COBRADO/CERRADO': [],
+  'ACUERDO EXTRAJUDICIAL': [],
+};
 const PERSPECTIVAS = ['','Alta','Media','Baja','Incobrable'];
 const TIPOS_GESTION = ['Llamado telefónico','WhatsApp','Email','Carta documento','Visita','Reunión','Nota interna','Otro'];
 const IS_ADMIN = {{ 'true' if role == 'admin' else 'false' }};
@@ -883,6 +890,7 @@ function renderTabla(lista) {
         ${chequePend > 0 ? `<span style="font-size:0.7rem;color:#ca8a04;display:block">🧾⏳ ${fmt(chequePend)}</span>` : ''}
       </td>
       <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'estado', ESTADOS)">${badgeEstado(c.estado, c)}</span></td>
+      <td><span class="editable" onclick="editarSubEstado(this, ${c.id}, c.estado, c.sub_estado)">${c.sub_estado ? `<span class="badge" style="background:#f1f5f9;color:#475569;font-size:0.72rem">${c.sub_estado}</span>` : '<span style="color:var(--muted);font-size:0.8rem">—</span>'}</span></td>
       <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'fecha_gestion', 'text')">${c.fecha_gestion || '—'}</span></td>
       <td><span class="editable" onclick="editarSelect(this, ${c.id}, 'perspectiva', PERSPECTIVAS)">${badgePersp(c.perspectiva)}</span></td>
       <td>
@@ -906,7 +914,7 @@ function renderTabla(lista) {
     trH.classList.add('historial-row');
     trH.id = `hist-row-${c.id}`;
     trH.innerHTML = `
-      <td colspan="10" class="historial-cell">
+      <td colspan="11" class="historial-cell">
         <div class="expand-tabs">
           <div class="expand-tab active" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'pagos', this); cargarPagos(${c.id})">💰 Pagos</div>
@@ -1547,10 +1555,10 @@ async function loadDashboard() {
   const perspMonto = { Alta: 0, Media: 0, Baja: 0, Incobrable: 0 };
   activos.forEach(c => { if (perspMonto[c.perspectiva] !== undefined) perspMonto[c.perspectiva] += (c.monto_original||0)+(c.intereses||0); });
 
-  const coloresEstado = { PREJUDICIAL: '#ca8a04', JUICIO: '#dc2626', SENTENCIA: '#ea580c', EJECUCION: '#7c3aed', MEDIACION: '#0891b2', 'MEDIACION CON ACUERDO': '#059669', 'ACUERDO EXTRAJUDICIAL': '#7c3aed', 'COBRADO/CERRADO': '#16a34a' };
+  const coloresEstado = { PREJUDICIAL: '#ca8a04', MEDIACION: '#0891b2', JUICIO: '#dc2626', 'ACUERDO EXTRAJUDICIAL': '#7c3aed', 'COBRADO/CERRADO': '#16a34a' };
 
   // Agrupar etapa judicial
-  const estadosJudiciales = ['JUICIO', 'SENTENCIA', 'EJECUCION', 'MEDIACION', 'MEDIACION CON ACUERDO', 'ACUERDO EXTRAJUDICIAL'];
+  const estadosJudiciales = ['JUICIO'];
   const judicial = { cantidad: 0, total_adeudado: 0, pagado: 0, cheques_pendientes: 0 };
   estadosJudiciales.forEach(e => {
     if (r[e]) {
@@ -1681,6 +1689,28 @@ function abrirActividad() {
   toggleUserMenu();
 }
 
+// ---- SUB-ESTADO ----
+function editarSubEstado(el, id, estado, subestadoActual) {
+  const opciones = SUBESTADOS[estado] || [];
+  if (!opciones.length) return;
+  const sel = document.createElement('select');
+  sel.className = 'inline-select';
+  sel.innerHTML = '<option value="">— Sin sub-estado —</option>' +
+    opciones.map(o => `<option value="${o}" ${o === subestadoActual ? 'selected' : ''}>${o}</option>`).join('');
+  sel.onblur = async () => {
+    const val = sel.value;
+    await fetch(`/api/clientes/${id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({sub_estado: val})
+    });
+    await cargarClientes();
+    toast('Sub-estado actualizado ✓', 'success');
+  };
+  el.replaceWith(sel);
+  sel.focus();
+}
+
 // ---- DATOS POPOVER ----
 function toggleDatosPopover(event, id) {
   event.stopPropagation();
@@ -1745,7 +1775,7 @@ async function loadGraficos() {
   const res = await fetch('/api/resumen');
   const r = await res.json();
 
-  const estadosJud = ['JUICIO', 'SENTENCIA', 'EJECUCION', 'MEDIACION', 'MEDIACION CON ACUERDO', 'ACUERDO EXTRAJUDICIAL'];
+  const estadosJud = ['JUICIO'];
   const montoJudicial = estadosJud.reduce((s, e) => s + (r[e]?.total_adeudado || 0), 0);
   const cantJudicial = estadosJud.reduce((s, e) => s + (r[e]?.cantidad || 0), 0);
 
