@@ -363,6 +363,40 @@ td { padding: 0.55rem 0.75rem; font-size: 0.82rem; vertical-align: middle; }
 .user-dropdown a:hover { background: #f1f5f9; }
 .dropdown-divider { height: 1px; background: var(--border); margin: 0.25rem 0; }
 
+/* DATOS POPOVER */
+.datos-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 200;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  padding: 1rem;
+  min-width: 380px;
+  max-width: 480px;
+}
+.datos-popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--navy);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+.datos-popover-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+.datos-popover-grid div { display: flex; flex-direction: column; gap: 0.2rem; }
+.datos-popover-grid label { font-size: 0.68rem; font-weight: 700; color: var(--slate); text-transform: uppercase; letter-spacing: 0.4px; }
+.datos-popover-grid input { font-size: 0.8rem; padding: 0.3rem 0.5rem; border: 1px solid var(--border); border-radius: 5px; outline: none; color: var(--text); }
+.datos-popover-grid input:focus { border-color: var(--navy); }
+
 /* BOTON OBSERVACIONES */
 .btn-obs {
   padding: 0.25rem 0.6rem;
@@ -823,7 +857,24 @@ function renderTabla(lista) {
     const total = Math.max(0, mo + int_ - pagado);
     tr.innerHTML = `
       <td>${i + 1}</td>
-      <td><span class="editable" onclick="editarCampo(this, ${c.id}, 'razon_social', 'text')">${c.razon_social || ''}</span></td>
+      <td style="position:relative">
+        <span style="cursor:pointer;font-weight:600;color:var(--navy)" onclick="toggleDatosPopover(event, ${c.id})">${c.razon_social || ''}</span>
+        <div id="datos-popover-${c.id}" class="datos-popover" style="display:none">
+          <div class="datos-popover-header">
+            <strong>${c.razon_social}</strong>
+            <button onclick="toggleDatosPopover(event, ${c.id})" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--slate)">✕</button>
+          </div>
+          <div class="datos-popover-grid">
+            <div><label>CUIT / DNI</label><input value="${c.cuit || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'cuit', this.value)"></div>
+            <div><label>Domicilio</label><input value="${c.domicilio || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'domicilio', this.value)"></div>
+            <div><label>Localidad</label><input value="${c.localidad || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'localidad', this.value)"></div>
+            <div><label>CP</label><input value="${c.cp || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'cp', this.value)"></div>
+            <div><label>Provincia</label><input value="${c.provincia || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'provincia', this.value)"></div>
+            <div><label>Fecha Inicio Gestión</label><input type="date" value="${c.fecha_juicio || ''}" onblur="guardarDato(${c.id}, 'fecha_juicio', this.value)"></div>
+            <div><label>Fecha Cobro</label><input value="${c.fecha_cobro || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'fecha_cobro', this.value)"></div>
+          </div>
+        </div>
+      </td>
       <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'monto_original', 'number')">${fmt(mo)}</span></td>
       <td class="monto"><span class="editable" onclick="editarCampo(this, ${c.id}, 'intereses', 'number')">${fmt(int_)}</span></td>
       <td class="monto">
@@ -857,45 +908,10 @@ function renderTabla(lista) {
     trH.innerHTML = `
       <td colspan="10" class="historial-cell">
         <div class="expand-tabs">
-          <div class="expand-tab active" onclick="switchTab(${c.id}, 'datos', this)">👤 Datos</div>
-          <div class="expand-tab" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
+          <div class="expand-tab active" onclick="switchTab(${c.id}, 'facturas', this)">🧾 Facturas</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'pagos', this); cargarPagos(${c.id})">💰 Pagos</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'gestiones', this)">📝 Gestiones</div>
           <div class="expand-tab" onclick="switchTab(${c.id}, 'acuerdo', this)">🤝 Acuerdo</div>
-        </div>
-
-        <!-- DATOS -->
-        <div class="expand-section active" id="sec-datos-${c.id}">
-          <div class="datos-form">
-            <div class="dato-row">
-              <label>CUIT / DNI</label>
-              <input id="d-cuit-${c.id}" value="${c.cuit || ''}" placeholder="XX-XXXXXXXX-X" onblur="guardarDato(${c.id}, 'cuit', this.value)">
-            </div>
-            <div class="dato-row">
-              <label>Domicilio</label>
-              <input id="d-dom-${c.id}" value="${c.domicilio || ''}" placeholder="Calle y número" onblur="guardarDato(${c.id}, 'domicilio', this.value)">
-            </div>
-            <div class="dato-row">
-              <label>Localidad</label>
-              <input id="d-loc-${c.id}" value="${c.localidad || ''}" placeholder="Localidad" onblur="guardarDato(${c.id}, 'localidad', this.value)">
-            </div>
-            <div class="dato-row">
-              <label>CP</label>
-              <input id="d-cp-${c.id}" value="${c.cp || ''}" placeholder="Código postal" onblur="guardarDato(${c.id}, 'cp', this.value)">
-            </div>
-            <div class="dato-row">
-              <label>Provincia</label>
-              <input id="d-prov-${c.id}" value="${c.provincia || ''}" placeholder="Provincia" onblur="guardarDato(${c.id}, 'provincia', this.value)">
-            </div>
-            <div class="dato-row">
-              <label>Fecha Inicio Gestión</label>
-              <input type="date" id="d-juicio-${c.id}" value="${c.fecha_juicio || ''}" onblur="guardarDato(${c.id}, 'fecha_juicio', this.value)">
-            </div>
-            <div class="dato-row">
-              <label>Fecha Cobro</label>
-              <input id="d-cobro-${c.id}" value="${c.fecha_cobro || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'fecha_cobro', this.value)">
-            </div>
-          </div>
         </div>
 
         <!-- ACUERDO EXTRAJUDICIAL -->
@@ -917,7 +933,7 @@ function renderTabla(lista) {
         </div>
 
         <!-- FACTURAS -->
-        <div class="expand-section" id="sec-facturas-${c.id}">
+        <div class="expand-section active" id="sec-facturas-${c.id}">
           <div class="facturas-form">
             <input class="f-num" id="f-num-${c.id}" placeholder="N° Factura (opcional)">
             <input class="f-monto" id="f-monto-${c.id}" type="number" placeholder="Monto ($)">
@@ -1664,6 +1680,20 @@ function abrirActividad() {
   loadActividad();
   toggleUserMenu();
 }
+
+// ---- DATOS POPOVER ----
+function toggleDatosPopover(event, id) {
+  event.stopPropagation();
+  // Cerrar todos los demás
+  document.querySelectorAll('.datos-popover').forEach(p => {
+    if (p.id !== `datos-popover-${id}`) p.style.display = 'none';
+  });
+  const pop = document.getElementById(`datos-popover-${id}`);
+  pop.style.display = pop.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', () => {
+  document.querySelectorAll('.datos-popover').forEach(p => p.style.display = 'none');
+});
 
 // ---- ACTIVIDAD ----
 async function loadActividad() {
