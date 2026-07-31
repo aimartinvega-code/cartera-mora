@@ -33,7 +33,15 @@ LOG_FILE = os.path.join(DATA_DIR, 'actividad.json')
 EVENTOS_FILE = os.path.join(DATA_DIR, 'eventos.json')
 os.makedirs(FILES_DIR, exist_ok=True)
 
-ESTADOS = ['PREJUDICIAL', 'JUICIO', 'SENTENCIA', 'EJECUCION', 'COBRADO/CERRADO', 'MEDIACION', 'MEDIACION CON ACUERDO', 'ACUERDO EXTRAJUDICIAL']
+ESTADOS = ['PREJUDICIAL', 'MEDIACION', 'JUICIO', 'COBRADO/CERRADO', 'ACUERDO EXTRAJUDICIAL']
+
+SUBESTADOS = {
+    'PREJUDICIAL': ['Comunicaciones', 'Carta Documento'],
+    'MEDIACION': ['En proceso', 'Sin acuerdo', 'Con acuerdo'],
+    'JUICIO': ['En proceso', 'Sentencia', 'Ejecución de sentencia'],
+    'COBRADO/CERRADO': [],
+    'ACUERDO EXTRAJUDICIAL': [],
+}
 PERSPECTIVAS = ['Alta', 'Media', 'Baja', 'Incobrable', '']
 
 # --- Log de actividad ---
@@ -253,7 +261,7 @@ def index():
 @login_required
 def get_config():
     data = load_data()
-    return jsonify({'tasa_bna': data.get('tasa_bna', 60.0)})
+    return jsonify({'tasa_bna': data.get('tasa_bna', 60.0), 'subestados': SUBESTADOS})
 
 @app.route('/api/config', methods=['PUT'])
 @login_required
@@ -522,7 +530,7 @@ def get_resumen():
     tasa = data.get('tasa_bna', 60.0)
     hoy = date.today()
     resumen = {}
-    todos = ESTADOS + ['MEDIACION', 'MEDIACION CON ACUERDO', 'ACUERDO EXTRAJUDICIAL']
+    todos = ESTADOS
     for estado in todos:
         cs = [c for c in data['clientes'] if c['estado'] == estado]
         monto_total = 0
