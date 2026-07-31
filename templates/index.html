@@ -918,9 +918,9 @@ function renderTabla(lista) {
         ${chequePend > 0 ? `<span style="font-size:0.7rem;color:#ca8a04;display:block">🧾⏳ ${fmt(chequePend)}</span>` : ''}
       </td>
       <td>
-        <span onclick="abrirModalEstado(${c.id}, c.estado, c.sub_estado || '')" style="cursor:pointer">
+        <span onclick="abrirModalEstado(${c.id}, '${c.estado}', '${c.sub_estado || ''}')" style="cursor:pointer">
           ${badgeEstado(c.estado, c)}
-          ${c.sub_estado ? '<span style="display:block;font-size:0.68rem;color:var(--slate);margin-top:2px">' + c.sub_estado + '</span>' : ''}
+          ${c.sub_estado ? `<span style="display:block;font-size:0.68rem;color:var(--slate);margin-top:2px">${c.sub_estado}</span>` : ''}
         </span>
       </td>
 
