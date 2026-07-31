@@ -273,6 +273,14 @@ def update_config():
     save_data(data)
     return jsonify({'tasa_bna': data['tasa_bna']})
 
+# Mapeo de estados viejos a nuevos
+ESTADO_MIGRATION = {
+    'SENTENCIA': ('JUICIO', 'Sentencia'),
+    'EJECUCION': ('JUICIO', 'Ejecucion de sentencia'),
+    'MEDIACION CON ACUERDO': ('MEDIACION', 'Con acuerdo'),
+    'ACUERDO EXTRAJUDICIAL': ('ACUERDO EXTRAJUDICIAL', ''),
+}
+
 @app.route('/api/clientes', methods=['GET'])
 @login_required
 def get_clientes():
@@ -282,6 +290,12 @@ def get_clientes():
     clientes = []
     for c in data['clientes']:
         c2 = dict(c)
+        # Migrar estados viejos
+        if c2.get('estado') in ESTADO_MIGRATION:
+            nuevo_estado, nuevo_sub = ESTADO_MIGRATION[c2['estado']]
+            c2['estado'] = nuevo_estado
+            if nuevo_sub and not c2.get('sub_estado'):
+                c2['sub_estado'] = nuevo_sub
         facturas = data.get('facturas', {}).get(str(c['id']), [])
         c2['facturas'] = facturas
         # Calcular pagos parciales primero
