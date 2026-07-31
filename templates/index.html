@@ -1722,6 +1722,8 @@ let _estadoClienteId = null;
 
 function abrirModalEstado(id, estado, subestado) {
   _estadoClienteId = id;
+  estado = (estado || '').trim();
+  subestado = (subestado || '').trim();
   // Poblar selector de etapas
   const selEstado = document.getElementById('modal-estado-sel');
   selEstado.innerHTML = Object.keys(SUBESTADOS).map(e =>
@@ -1729,7 +1731,7 @@ function abrirModalEstado(id, estado, subestado) {
   ).join('');
   selEstado.value = estado;
   // Poblar sub-estados
-  _modalSetSubestado(subestado || '');
+  _modalSetSubestado(subestado);
   document.getElementById('modal-estado-overlay').classList.add('open');
 }
 
