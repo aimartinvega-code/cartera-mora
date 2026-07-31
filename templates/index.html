@@ -918,7 +918,7 @@ function renderTabla(lista) {
         ${chequePend > 0 ? `<span style="font-size:0.7rem;color:#ca8a04;display:block">🧾⏳ ${fmt(chequePend)}</span>` : ''}
       </td>
       <td>
-        <span onclick="abrirModalEstado(${c.id}, '${c.estado}', '${c.sub_estado || ''}')" style="cursor:pointer">
+        <span class="btn-cambiar-estado" data-id="${c.id}" data-estado="${c.estado}" data-subestado="${c.sub_estado || ''}" style="cursor:pointer">
           ${badgeEstado(c.estado, c)}
           ${c.sub_estado ? `<span style="display:block;font-size:0.68rem;color:var(--slate);margin-top:2px">${c.sub_estado}</span>` : ''}
         </span>
@@ -2128,6 +2128,16 @@ async function abrirDetalle(tipo) {
 
   document.getElementById('detalle-overlay').classList.add('open');
 }
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('.btn-cambiar-estado');
+  if (btn) {
+    const id = parseInt(btn.dataset.id);
+    const estado = btn.dataset.estado;
+    const subestado = btn.dataset.subestado || '';
+    abrirModalEstado(id, estado, subestado);
+  }
+});
+
 cargarClientes();
 </script>
 </body>
