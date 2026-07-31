@@ -765,14 +765,9 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
       <div>
         <label style="font-size:0.72rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:0.3rem">Etapa</label>
         <select id="modal-estado-sel" onchange="modalActualizarSubestado()" style="width:100%;padding:0.5rem;border:1.5px solid var(--border);border-radius:7px;font-size:0.88rem;outline:none">
-          <option>PREJUDICIAL</option>
-          <option>MEDIACION</option>
-          <option>JUICIO</option>
-          <option>ACUERDO EXTRAJUDICIAL</option>
-          <option>COBRADO/CERRADO</option>
         </select>
       </div>
-      <div id="modal-subestado-wrap">
+      <div id="modal-subestado-wrap" style="display:none">
         <label style="font-size:0.72rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;display:block;margin-bottom:0.3rem">Sub-estado</label>
         <select id="modal-subestado-sel" style="width:100%;padding:0.5rem;border:1.5px solid var(--border);border-radius:7px;font-size:0.88rem;outline:none">
           <option value="">— Sin sub-estado —</option>
@@ -1727,13 +1722,18 @@ let _estadoClienteId = null;
 
 function abrirModalEstado(id, estado, subestado) {
   _estadoClienteId = id;
+  // Poblar selector de etapas
   const selEstado = document.getElementById('modal-estado-sel');
+  selEstado.innerHTML = Object.keys(SUBESTADOS).map(e =>
+    '<option value="' + e + '">' + e + '</option>'
+  ).join('');
   selEstado.value = estado;
-  modalActualizarSubestado(subestado);
+  // Poblar sub-estados
+  _modalSetSubestado(subestado || '');
   document.getElementById('modal-estado-overlay').classList.add('open');
 }
 
-function modalActualizarSubestado(subestadoActual) {
+function _modalSetSubestado(subestadoActual) {
   const estado = document.getElementById('modal-estado-sel').value;
   const opciones = SUBESTADOS[estado] || [];
   const sel = document.getElementById('modal-subestado-sel');
@@ -1741,6 +1741,10 @@ function modalActualizarSubestado(subestadoActual) {
     opciones.map(o => '<option value="' + o + '">' + o + '</option>').join('');
   if (subestadoActual) sel.value = subestadoActual;
   document.getElementById('modal-subestado-wrap').style.display = opciones.length ? 'block' : 'none';
+}
+
+function modalActualizarSubestado() {
+  _modalSetSubestado('');
 }
 
 async function guardarEstadoYSubestado() {
