@@ -612,8 +612,6 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
         <option>MEDIACION</option>
         <option>JUICIO</option>
         <option>ACUERDO EXTRAJUDICIAL</option>
-        <option>COBRADO/CERRADO</option>
-        <option>ACUERDO EXTRAJUDICIAL</option>
         <option>COBRADO/CERRADO</option>      </select>
       <select id="filtro-perspectiva" onchange="filtrarTabla()">
         <option value="">Todas las perspectivas</option>
@@ -1480,9 +1478,14 @@ function filtrarActual() {
   const busq = document.getElementById('buscar').value.toLowerCase();
   const est = document.getElementById('filtro-estado').value;
   const persp = document.getElementById('filtro-perspectiva').value;
+  const ESTADOS_JUICIO = ['JUICIO', 'SENTENCIA', 'EJECUCION'];
+  const ESTADOS_MEDIACION = ['MEDIACION', 'MEDIACION CON ACUERDO'];
   return clientes.filter(c => {
     const matchBusq = !busq || c.razon_social?.toLowerCase().includes(busq);
-    const matchEst = !est || c.estado === est;
+    let matchEst = !est;
+    if (est === 'JUICIO') matchEst = ESTADOS_JUICIO.includes(c.estado);
+    else if (est === 'MEDIACION') matchEst = ESTADOS_MEDIACION.includes(c.estado);
+    else if (est) matchEst = c.estado === est;
     const matchPersp = !persp || c.perspectiva === persp;
     return matchBusq && matchEst && matchPersp;
   });
