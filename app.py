@@ -524,11 +524,12 @@ def add_pago(cid):
         data['pagos'][str(cid)] = []
     data['pagos'][str(cid)].insert(0, pago)
 
-    # Si es pago total → marcar como COBRADO/CERRADO
+    # Si es pago total o parcial que cubre el saldo → marcar como COBRADO/CERRADO
     if pago['tipo'] == 'total':
         for c in data['clientes']:
             if c['id'] == cid:
                 c['estado'] = 'COBRADO/CERRADO'
+                c['sub_estado'] = ''
                 c['fecha_cobro'] = datetime.now().strftime('%d/%m/%Y')
                 break
 
