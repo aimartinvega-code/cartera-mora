@@ -2275,6 +2275,16 @@ document.addEventListener('click', function(e) {
   }
 });
 
+document.addEventListener('change', function(e) {
+  const sel = e.target.closest('.tipo-cliente-sel');
+  if (sel) {
+    const id = parseInt(sel.dataset.id);
+    const valor = sel.value;
+    guardarDato(id, 'tipo_cliente', valor).then(() => cargarClientes());
+    toast('Tipo actualizado ✓', 'success');
+  }
+});
+
 cargarClientes();
 </script>
 </body>
