@@ -528,6 +528,61 @@ def add_pago(cid):
     save_data(data)
     return jsonify(pago)
 
+@app.route('/api/pagos/<int:cid>/<pid>/estado', methods=['PUT'])
+@login_required
+def update_cheque_estado(cid, pid):
+    data = load_data()
+    body = request.json
+    nuevo_estado = body.get('estado')  # 'cobrado' o 'rechazado'
+    pagos = data.get('pagos', {}).get(str(cid), [])
+    for p in pagos:
+        if p.get('id') == pid and p.get('tipo') == 'cheque':
+            p['cheque_estado'] = nuevo_estado
+            if nuevo_estado == 'cobrado':
+                p['cheque_cobrado'] = True
+                p['fecha_cobro_real'] = datetime.now().strftime('%d/%m/%Y')
+            elif nuevo_estado == 'rechazado':
+                p['cheque_cobrado'] = False
+                p['cheque_rechazado'] = True
+            break
+    save_data(data)
+    log_actividad(f'Cheque {nuevo_estado}', cliente=next((c['razon_social'] for c in data['clientes'] if c['id'] == cid), ''))
+    return jsonify({'ok': True})
+
+@app.route('/api/cheques', methods=['GET'])
+@login_required
+def get_todos_cheques():
+    data = load_data()
+    hoy = date.today()
+    resultado = []
+    for c in data['clientes']:
+        cid = str(c['id'])
+        pagos = data.get('pagos', {}).get(cid, [])
+        for p in pagos:
+            if p.get('tipo') == 'cheque':
+                try:
+                    fecha_cheque = datetime.strptime(p.get('fecha_cobro_cheque', ''), '%Y-%m-%d').date()
+                except:
+                    fecha_cheque = None
+                estado = p.get('cheque_estado', '')
+                if p.get('cheque_rechazado'):
+                    estado_display = 'rechazado'
+                elif p.get('cheque_cobrado'):
+                    estado_display = 'cobrado'
+                else:
+                    estado_display = 'pendiente'
+                resultado.append({
+                    'pago_id': p.get('id'),
+                    'cliente_id': c['id'],
+                    'cliente': c.get('razon_social', ''),
+                    'monto': p.get('monto', 0),
+                    'fecha_cobro_cheque': p.get('fecha_cobro_cheque', ''),
+                    'fecha_cobro_real': p.get('fecha_cobro_real', ''),
+                    'observacion': p.get('observacion', ''),
+                    'estado': estado_display,
+                })
+    return jsonify(resultado)
+
 @app.route('/api/pagos/<int:cid>/<pid>', methods=['DELETE'])
 @admin_required
 def delete_pago(cid, pid):
