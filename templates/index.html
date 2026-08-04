@@ -1723,13 +1723,13 @@ async function loadDashboard() {
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:1.25rem">
       ${tipoData.estacion.length > 0 ? `
       <div style="background:#fff;border:2px solid #fde68a;border-radius:12px;padding:1.2rem 1.5rem;cursor:pointer" onclick="abrirDetalleTipo('estacion')">
-        <div style="font-size:0.72rem;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">⛽ Estaciones</div>
+        <div style="font-size:0.72rem;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">⛽ Estación</div>
         <div style="font-size:1.5rem;font-weight:800;color:#92400e;margin-top:0.3rem">${fmt(tipoMonto.estacion)}</div>
         <div style="font-size:0.75rem;color:#92400e;margin-top:0.2rem">${tipoData.estacion.length} clientes · click para ver</div>
       </div>` : ''}
       ${tipoData.distribuidor.length > 0 ? `
       <div style="background:#fff;border:2px solid #bfdbfe;border-radius:12px;padding:1.2rem 1.5rem;cursor:pointer" onclick="abrirDetalleTipo('distribuidor')">
-        <div style="font-size:0.72rem;color:#1e40af;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">🛢️ Distribuidores</div>
+        <div style="font-size:0.72rem;color:#1e40af;text-transform:uppercase;letter-spacing:0.5px;font-weight:700">🛢️ Distribuidor</div>
         <div style="font-size:1.5rem;font-weight:800;color:#1e40af;margin-top:0.3rem">${fmt(tipoMonto.distribuidor)}</div>
         <div style="font-size:0.75rem;color:#1e40af;margin-top:0.2rem">${tipoData.distribuidor.length} clientes · click para ver</div>
       </div>` : ''}
@@ -2233,7 +2233,7 @@ document.getElementById('detalle-overlay').addEventListener('click', e => {
 
 // ---- DETALLE CLIENTES ----
 function abrirDetalleTipo(tipo) {
-  const label = tipo === 'estacion' ? '⛽ Estaciones de Servicio' : '🛢️ Distribuidores';
+  const label = tipo === 'estacion' ? '⛽ Estación' : '🛢️ Distribuidor';
   const lista = clientes.filter(c => c.tipo_cliente === tipo && c.estado !== 'COBRADO/CERRADO');
   lista.sort((a, b) => Math.max(0,(b.monto_original||0)+(b.intereses||0)-(b.pagado_parcial||0)) - Math.max(0,(a.monto_original||0)+(a.intereses||0)-(a.pagado_parcial||0)));
   const totalMonto = lista.reduce((s, c) => s + Math.max(0,(c.monto_original||0)+(c.intereses||0)-(c.pagado_parcial||0)), 0);
