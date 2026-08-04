@@ -1516,6 +1516,12 @@ async function eliminarCliente(id) {
 }
 
 // ---- TIPO CLIENTE ----
+async function setTipoClienteBtn(id, tipo) {
+  await guardarDato(id, 'tipo_cliente', tipo);
+  await cargarClientes();
+  toast('Tipo actualizado: ' + (tipo === 'estacion' ? '⛽ Estación' : '🛢️ Distribuidor'), 'success');
+}
+
 let tipoClienteActual = 'todos';
 
 function setTipoCliente(tipo) {
