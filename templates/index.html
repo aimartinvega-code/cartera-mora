@@ -932,8 +932,8 @@ function renderTabla(lista) {
           </div>
           <div class="datos-popover-grid">
             <div><label>Tipo de cliente</label>
-              <select onchange="guardarDato(${c.id}, 'tipo_cliente', this.value)" style="font-size:0.8rem;padding:0.3rem 0.5rem;border:1px solid var(--border);border-radius:5px;width:100%">
-                <option value="">— Sin clasificar —</option>
+              <select onchange="guardarDato(${c.id}, 'tipo_cliente', this.value); cargarClientes()" style="font-size:0.8rem;padding:0.3rem 0.5rem;border:1px solid var(--border);border-radius:5px;width:100%">
+                <option value="" ${!c.tipo_cliente ? 'selected' : ''}>— Sin clasificar —</option>
                 <option value="estacion" ${c.tipo_cliente === 'estacion' ? 'selected' : ''}>⛽ Estación</option>
                 <option value="distribuidor" ${c.tipo_cliente === 'distribuidor' ? 'selected' : ''}>🛢️ Distribuidor</option>
               </select>
