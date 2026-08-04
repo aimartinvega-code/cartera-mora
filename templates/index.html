@@ -1039,7 +1039,7 @@ function renderTabla(lista) {
             <input id="p-fecha-cheque-${c.id}" type="date" placeholder="Fecha del cheque" style="display:none" title="Fecha de cobro del cheque">
             <input id="p-obs-${c.id}" placeholder="Observación (opcional)" style="flex:1;min-width:140px">
             <button class="btn-hist" onclick="registrarPago(${c.id}, document.getElementById('p-tipo-${c.id}').value)">Registrar</button>
-            <button class="btn-pago-total" onclick="prefillPagoTotal(${c.id}, ${(c.monto_original||0) + (c.intereses||0)})">✅ Pago total</button>
+            <button class="btn-pago-total" onclick="prefillPagoTotal(${c.id}, ${Math.max(0, (c.monto_original||0) + (c.intereses||0) - (c.pagado_parcial||0))})">✅ Pago total (${fmt(Math.max(0, (c.monto_original||0) + (c.intereses||0) - (c.pagado_parcial||0)))})</button>
           </div>
           <div id="pagos-list-${c.id}"><span class="hist-empty">Sin pagos registrados.</span></div>
         </div>
