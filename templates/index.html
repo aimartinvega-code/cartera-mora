@@ -598,6 +598,7 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
 <div class="tabs">
   <div class="tab active" onclick="showPanel('clientes', this)">📋 Clientes</div>
   <div class="tab" onclick="showPanel('dashboard', this); loadDashboard(); loadGraficos()">📊 Resumen</div>
+  <div class="tab" onclick="showPanel('cheques', this); loadCheques()">🧾 Cheques</div>
 </div>
 
 <div class="main">
@@ -672,6 +673,34 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
         <h3>Cantidad de Clientes por Estado</h3>
         <canvas id="chart-cantidad" style="max-height:200px"></canvas>
       </div>
+    </div>
+  </div>
+
+  <!-- PANEL CHEQUES -->
+  <div class="panel" id="panel-cheques">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div>
+        <div style="font-size:1rem;font-weight:700;color:var(--navy)">🧾 Cartera de Cheques</div>
+        <div style="font-size:0.78rem;color:var(--slate)">Cheques pendientes, cobrados y rechazados</div>
+      </div>
+    </div>
+
+    <!-- PENDIENTES -->
+    <div style="margin-bottom:1.5rem">
+      <div style="font-size:0.8rem;font-weight:700;color:#ca8a04;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.6rem">🟡 Pendientes de cobro</div>
+      <div id="cheques-pendientes-list"></div>
+    </div>
+
+    <!-- COBRADOS -->
+    <div style="margin-bottom:1.5rem">
+      <div style="font-size:0.8rem;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.6rem">✅ Cobrados</div>
+      <div id="cheques-cobrados-list"></div>
+    </div>
+
+    <!-- RECHAZADOS -->
+    <div>
+      <div style="font-size:0.8rem;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.6rem">🔴 Rechazados</div>
+      <div id="cheques-rechazados-list"></div>
     </div>
   </div>
 
@@ -1801,6 +1830,73 @@ function toggleDatosPopover(event, id) {
 document.addEventListener('click', () => {
   document.querySelectorAll('.datos-popover').forEach(p => p.style.display = 'none');
 });
+
+// ---- CHEQUES ----
+async function loadCheques() {
+  const res = await fetch('/api/cheques');
+  const cheques = await res.json();
+
+  const pendientes = cheques.filter(c => c.estado === 'pendiente');
+  const cobrados = cheques.filter(c => c.estado === 'cobrado');
+  const rechazados = cheques.filter(c => c.estado === 'rechazado');
+
+  function renderChequeTable(lista, tipo) {
+    if (!lista.length) return '<div style="color:var(--muted);font-size:0.82rem;padding:0.5rem 0">Sin registros.</div>';
+    const totalMonto = lista.reduce((s, c) => s + (c.monto || 0), 0);
+    return `
+      <table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin-bottom:0.5rem">
+        <thead style="background:var(--navy);color:#fff">
+          <tr>
+            <th style="padding:0.5rem 0.75rem;text-align:left">Cliente</th>
+            <th style="padding:0.5rem 0.75rem;text-align:right">Monto</th>
+            <th style="padding:0.5rem 0.75rem;text-align:center">Fecha Cheque</th>
+            ${tipo === 'cobrado' ? '<th style="padding:0.5rem 0.75rem;text-align:center">Fecha Cobro</th>' : ''}
+            <th style="padding:0.5rem 0.75rem;text-align:left">Observación</th>
+            ${tipo === 'pendiente' ? '<th style="padding:0.5rem 0.75rem;text-align:center">Acción</th>' : ''}
+          </tr>
+        </thead>
+        <tbody>
+          ${lista.map((c, i) => `
+            <tr style="border-bottom:1px solid var(--border);background:${i%2===0?'#fff':'#f8fafc'}">
+              <td style="padding:0.5rem 0.75rem;font-weight:600">${c.cliente}</td>
+              <td style="padding:0.5rem 0.75rem;text-align:right;font-weight:700">${fmt(c.monto)}</td>
+              <td style="padding:0.5rem 0.75rem;text-align:center">${c.fecha_cobro_cheque ? c.fecha_cobro_cheque.split('-').reverse().join('/') : '—'}</td>
+              ${tipo === 'cobrado' ? `<td style="padding:0.5rem 0.75rem;text-align:center;color:#16a34a">${c.fecha_cobro_real || '—'}</td>` : ''}
+              <td style="padding:0.5rem 0.75rem;color:var(--slate)">${c.observacion || '—'}</td>
+              ${tipo === 'pendiente' ? `
+                <td style="padding:0.5rem 0.75rem;text-align:center">
+                  <button onclick="cambiarEstadoCheque(${c.cliente_id}, '${c.pago_id}', 'cobrado')" style="padding:0.3rem 0.6rem;background:#16a34a;color:#fff;border:none;border-radius:5px;font-size:0.75rem;cursor:pointer;margin-right:4px">✅ Cobrado</button>
+                  <button onclick="cambiarEstadoCheque(${c.cliente_id}, '${c.pago_id}', 'rechazado')" style="padding:0.3rem 0.6rem;background:#dc2626;color:#fff;border:none;border-radius:5px;font-size:0.75rem;cursor:pointer">🔴 Rechazado</button>
+                </td>
+              ` : ''}
+            </tr>
+          `).join('')}
+          <tr style="background:#f1f5f9;font-weight:700">
+            <td style="padding:0.5rem 0.75rem">TOTAL</td>
+            <td style="padding:0.5rem 0.75rem;text-align:right">${fmt(totalMonto)}</td>
+            <td colspan="${tipo === 'pendiente' ? '3' : tipo === 'cobrado' ? '3' : '2'}"></td>
+          </tr>
+        </tbody>
+      </table>`;
+  }
+
+  document.getElementById('cheques-pendientes-list').innerHTML = renderChequeTable(pendientes, 'pendiente');
+  document.getElementById('cheques-cobrados-list').innerHTML = renderChequeTable(cobrados, 'cobrado');
+  document.getElementById('cheques-rechazados-list').innerHTML = renderChequeTable(rechazados, 'rechazado');
+}
+
+async function cambiarEstadoCheque(cid, pid, estado) {
+  const msg = estado === 'cobrado' ? '¿Marcar este cheque como COBRADO? Se descontará del saldo.' : '¿Marcar este cheque como RECHAZADO? No afectará el saldo.';
+  if (!confirm(msg)) return;
+  await fetch(`/api/pagos/${cid}/${pid}/estado`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ estado })
+  });
+  await loadCheques();
+  await cargarClientes();
+  toast(estado === 'cobrado' ? '✅ Cheque marcado como cobrado' : '🔴 Cheque marcado como rechazado', 'success');
+}
 
 // ---- ACTIVIDAD ----
 async function loadActividad() {
