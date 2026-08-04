@@ -306,14 +306,21 @@ def get_clientes():
             if p.get('tipo') == 'parcial':
                 pagado += p.get('monto', 0) or 0
             elif p.get('tipo') == 'cheque':
-                try:
-                    fc = datetime.strptime(p.get('fecha_cobro_cheque', ''), '%Y-%m-%d').date()
-                    if fc <= hoy:
-                        pagado += p.get('monto', 0) or 0
-                    else:
-                        cheque_pendiente += p.get('monto', 0) or 0
-                except:
+                if p.get('cheque_rechazado'):
+                    # Rechazado: no descuenta ni figura como pendiente
                     pass
+                elif p.get('cheque_cobrado') or p.get('cheque_estado') == 'cobrado':
+                    # Cobrado manualmente: descuenta del saldo
+                    pagado += p.get('monto', 0) or 0
+                else:
+                    try:
+                        fc = datetime.strptime(p.get('fecha_cobro_cheque', ''), '%Y-%m-%d').date()
+                        if fc <= hoy:
+                            pagado += p.get('monto', 0) or 0
+                        else:
+                            cheque_pendiente += p.get('monto', 0) or 0
+                    except:
+                        cheque_pendiente += p.get('monto', 0) or 0
         c2['pagado_parcial'] = pagado
         c2['cheque_pendiente'] = cheque_pendiente
 
