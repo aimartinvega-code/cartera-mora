@@ -303,14 +303,12 @@ def get_clientes():
         pagado = 0
         cheque_pendiente = 0
         for p in pagos:
-            if p.get('tipo') == 'parcial':
+            if p.get('tipo') in ('parcial', 'total'):
                 pagado += p.get('monto', 0) or 0
             elif p.get('tipo') == 'cheque':
                 if p.get('cheque_rechazado'):
-                    # Rechazado: no descuenta ni figura como pendiente
                     pass
                 elif p.get('cheque_cobrado') or p.get('cheque_estado') == 'cobrado':
-                    # Cobrado manualmente: descuenta del saldo
                     pagado += p.get('monto', 0) or 0
                 else:
                     try:
