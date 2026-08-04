@@ -605,6 +605,12 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
 
   <!-- PANEL CLIENTES -->
   <div class="panel active" id="panel-clientes">
+    <!-- TIPO CLIENTE TABS -->
+    <div style="display:flex;gap:0;margin-bottom:1rem;border-bottom:2px solid var(--border)">
+      <button id="tipo-btn-todos" onclick="setTipoCliente('todos')" style="padding:0.5rem 1.25rem;border:none;background:none;font-size:0.88rem;font-weight:700;color:var(--navy);border-bottom:2px solid var(--navy);margin-bottom:-2px;cursor:pointer">📋 Todos</button>
+      <button id="tipo-btn-estacion" onclick="setTipoCliente('estacion')" style="padding:0.5rem 1.25rem;border:none;background:none;font-size:0.88rem;font-weight:600;color:var(--slate);border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer">⛽ Estación</button>
+      <button id="tipo-btn-distribuidor" onclick="setTipoCliente('distribuidor')" style="padding:0.5rem 1.25rem;border:none;background:none;font-size:0.88rem;font-weight:600;color:var(--slate);border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer">🛢️ Distribuidor</button>
+    </div>
     <div class="filtros">
       <input type="text" id="buscar" placeholder="🔍 Buscar cliente..." oninput="filtrarTabla()">
       <select id="filtro-estado" onchange="filtrarTabla()">
@@ -916,13 +922,22 @@ function renderTabla(lista) {
     tr.innerHTML = `
       <td>${i + 1}</td>
       <td style="position:relative">
-        <span style="cursor:pointer;font-weight:600;color:var(--navy)" onclick="toggleDatosPopover(event, ${c.id})">${c.razon_social || ''}</span>
+        <span style="cursor:pointer;font-weight:600;color:var(--navy)" onclick="toggleDatosPopover(event, ${c.id})">
+          ${c.tipo_cliente === 'estacion' ? '⛽ ' : c.tipo_cliente === 'distribuidor' ? '🛢️ ' : ''}${c.razon_social || ''}
+        </span>
         <div id="datos-popover-${c.id}" class="datos-popover" style="display:none">
           <div class="datos-popover-header">
             <strong>${c.razon_social}</strong>
             <button onclick="toggleDatosPopover(event, ${c.id})" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--slate)">✕</button>
           </div>
           <div class="datos-popover-grid">
+            <div><label>Tipo de cliente</label>
+              <select onchange="guardarDato(${c.id}, 'tipo_cliente', this.value)" style="font-size:0.8rem;padding:0.3rem 0.5rem;border:1px solid var(--border);border-radius:5px;width:100%">
+                <option value="">— Sin clasificar —</option>
+                <option value="estacion" ${c.tipo_cliente === 'estacion' ? 'selected' : ''}>⛽ Estación</option>
+                <option value="distribuidor" ${c.tipo_cliente === 'distribuidor' ? 'selected' : ''}>🛢️ Distribuidor</option>
+              </select>
+            </div>
             <div><label>CUIT / DNI</label><input value="${c.cuit || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'cuit', this.value)"></div>
             <div><label>Domicilio</label><input value="${c.domicilio || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'domicilio', this.value)"></div>
             <div><label>Localidad</label><input value="${c.localidad || ''}" placeholder="—" onblur="guardarDato(${c.id}, 'localidad', this.value)"></div>
@@ -1501,6 +1516,21 @@ async function eliminarCliente(id) {
   toast('Cliente eliminado', '');
 }
 
+// ---- TIPO CLIENTE ----
+let tipoClienteActual = 'todos';
+
+function setTipoCliente(tipo) {
+  tipoClienteActual = tipo;
+  ['todos', 'estacion', 'distribuidor'].forEach(t => {
+    const btn = document.getElementById('tipo-btn-' + t);
+    if (!btn) return;
+    btn.style.color = t === tipo ? 'var(--navy)' : 'var(--slate)';
+    btn.style.fontWeight = t === tipo ? '700' : '600';
+    btn.style.borderBottom = t === tipo ? '2px solid var(--navy)' : '2px solid transparent';
+  });
+  filtrarTabla();
+}
+
 // ---- FILTROS ----
 function filtrarActual() {
   const busq = document.getElementById('buscar').value.toLowerCase();
@@ -1515,7 +1545,8 @@ function filtrarActual() {
     else if (est === 'MEDIACION') matchEst = ESTADOS_MEDIACION.includes(c.estado);
     else if (est) matchEst = c.estado === est;
     const matchPersp = !persp || c.perspectiva === persp;
-    return matchBusq && matchEst && matchPersp;
+    const matchTipo = tipoClienteActual === 'todos' || c.tipo_cliente === tipoClienteActual;
+    return matchBusq && matchEst && matchPersp && matchTipo;
   });
 }
 
