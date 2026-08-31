@@ -828,6 +828,13 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
       <div class="form-row" style="margin:0"><label>Localidad</label><input id="m-localidad" placeholder="Localidad"></div>
       <div class="form-row" style="margin:0"><label>CP</label><input id="m-cp" placeholder="Código postal"></div>
       <div class="form-row" style="margin:0"><label>Provincia</label><input id="m-provincia" placeholder="Provincia"></div>
+      <div class="form-row" style="margin:0"><label>Tipo de cliente</label>
+        <div style="display:flex;gap:0.5rem">
+          <button type="button" id="m-tipo-estacion" onclick="setModalTipo('estacion')" style="flex:1;padding:0.4rem;border:2px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:0.82rem">⛽ Estación</button>
+          <button type="button" id="m-tipo-distribuidor" onclick="setModalTipo('distribuidor')" style="flex:1;padding:0.4rem;border:2px solid var(--border);background:#fff;border-radius:6px;cursor:pointer;font-size:0.82rem">🛢️ Distribuidor</button>
+        </div>
+        <input type="hidden" id="m-tipo-cliente" value="">
+      </div>
       <div class="form-row" style="margin:0"><label>Estado</label>
         <select id="m-estado">
           <option>PREJUDICIAL</option>
