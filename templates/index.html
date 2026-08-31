@@ -1598,6 +1598,7 @@ async function guardarNuevo() {
 
   const nuevo = {
     razon_social: razon,
+    tipo_cliente: document.getElementById('m-tipo-cliente')?.value || '',
     cuit: document.getElementById('m-cuit').value.trim(),
     domicilio: document.getElementById('m-domicilio').value.trim(),
     localidad: document.getElementById('m-localidad').value.trim(),
