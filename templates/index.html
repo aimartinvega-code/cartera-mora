@@ -1567,7 +1567,24 @@ function filtrarTabla() {
 }
 
 // ---- MODAL NUEVO ----
-function abrirModal() { document.getElementById('modal-overlay').classList.add('open'); }
+function setModalTipo(tipo) {
+  document.getElementById('m-tipo-cliente').value = tipo;
+  ['estacion','distribuidor'].forEach(t => {
+    const btn = document.getElementById('m-tipo-' + t);
+    btn.style.border = t === tipo ? '2px solid #16a34a' : '2px solid var(--border)';
+    btn.style.background = t === tipo ? '#dcfce7' : '#fff';
+    btn.style.fontWeight = t === tipo ? '700' : '400';
+  });
+}
+
+function abrirModal() {
+  document.getElementById('m-tipo-cliente').value = '';
+  ['estacion','distribuidor'].forEach(t => {
+    const btn = document.getElementById('m-tipo-' + t);
+    if (btn) { btn.style.border = '2px solid var(--border)'; btn.style.background = '#fff'; btn.style.fontWeight = '400'; }
+  });
+  document.getElementById('modal-overlay').classList.add('open');
+}
 function cerrarModal() { document.getElementById('modal-overlay').classList.remove('open'); }
 
 async function guardarNuevo() {
