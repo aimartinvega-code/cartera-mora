@@ -1229,9 +1229,17 @@ function renderPagos(id, pagos) {
       let icono, label, color;
       if (p.tipo === 'total') { icono = '✅'; label = 'PAGO TOTAL'; color = '#16a34a'; }
       else if (p.tipo === 'cheque') {
-        icono = '🧾'; color = p.cheque_cobrado ? '#16a34a' : '#ca8a04';
         const fechaFmt = p.fecha_cobro_cheque ? p.fecha_cobro_cheque.split('-').reverse().join('/') : '—';
-        label = p.cheque_cobrado ? 'Cheque cobrado (' + fechaFmt + ')' : 'Cheque a cobrar el ' + fechaFmt;
+        if (p.cheque_cobrado || p.cheque_estado === 'cobrado') {
+          icono = '🧾'; color = '#16a34a';
+          label = 'Cheque cobrado (' + fechaFmt + ')';
+        } else if (p.cheque_rechazado || p.cheque_estado === 'rechazado') {
+          icono = '🔴'; color = '#dc2626';
+          label = 'Cheque rechazado (' + fechaFmt + ')';
+        } else {
+          icono = '🧾'; color = '#ca8a04';
+          label = 'Cheque a cobrar el ' + fechaFmt;
+        }
       }
       else { icono = '💰'; label = 'Pago parcial'; color = '#0369a1'; }
       return `
