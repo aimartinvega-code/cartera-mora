@@ -1094,6 +1094,36 @@ def upload_archivo(cid):
     f.save(os.path.join(carpeta, filename))
     return jsonify({'ok': True, 'nombre': filename})
 
+@app.route('/api/archivos/<int:cid>/acuerdo', methods=['POST'])
+@login_required
+def upload_archivo_acuerdo(cid):
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file'}), 400
+    f = request.files['file']
+    if not f.filename:
+        return jsonify({'error': 'No filename'}), 400
+    carpeta = os.path.join(FILES_DIR, str(cid), 'acuerdo')
+    os.makedirs(carpeta, exist_ok=True)
+    filename = secure_filename(f.filename)
+    f.save(os.path.join(carpeta, filename))
+    # Guardar referencia en el cliente
+    data = load_data()
+    for c in data['clientes']:
+        if c['id'] == cid:
+            if 'acuerdo_archivos' not in c:
+                c['acuerdo_archivos'] = []
+            if filename not in c['acuerdo_archivos']:
+                c['acuerdo_archivos'].append(filename)
+            break
+    save_data(data)
+    return jsonify({'ok': True, 'nombre': filename})
+
+@app.route('/api/archivos/<int:cid>/acuerdo/<filename>', methods=['GET'])
+@login_required
+def download_archivo_acuerdo(cid, filename):
+    carpeta = os.path.join(FILES_DIR, str(cid), 'acuerdo')
+    return send_file(os.path.join(carpeta, secure_filename(filename)), as_attachment=True)
+
 @app.route('/api/archivos/<int:cid>/<filename>', methods=['GET'])
 @login_required
 def download_archivo(cid, filename):
