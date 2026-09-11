@@ -1072,6 +1072,10 @@ function renderTabla(lista) {
               ${TIPOS_GESTION.map(t => `<option>${t}</option>`).join('')}
             </select>
             <input name="nota" id="nota-${c.id}" placeholder="Descripción de la gestión..." />
+            <label class="btn-hist" style="cursor:pointer;background:#f1f5f9;color:var(--navy);border:1.5px solid var(--border)" title="Adjuntar archivo">
+              📎
+              <input type="file" id="gestion-file-${c.id}" style="display:none" accept=".pdf,.doc,.docx,.jpg,.png,.xlsx">
+            </label>
             <button class="btn-hist" onclick="agregarGestion(${c.id})">Registrar</button>
           </div>
           <div class="hist-list" id="hist-list-${c.id}">
@@ -1502,6 +1506,7 @@ function renderHistorial(id, hist) {
       <span class="hist-fecha">${h.fecha}</span>
       <span class="hist-tipo">${h.tipo}</span>
       <span class="hist-nota">${h.nota || '—'}</span>
+      ${h.archivo ? `<a href="/api/historial/${id}/${h.id}/archivo/${h.archivo}" target="_blank" style="font-size:0.75rem;color:var(--navy);text-decoration:none;white-space:nowrap">📎 ${h.archivo}</a>` : ''}
     </div>
   `).join('');
 }
@@ -1510,11 +1515,20 @@ async function agregarGestion(id) {
   const tipo = document.getElementById(`tipo-${id}`).value;
   const nota = document.getElementById(`nota-${id}`).value.trim();
   if (!nota) { toast('Ingresá una descripción', 'error'); return; }
-  await fetch(`/api/historial/${id}`, {
+  const res = await fetch(`/api/historial/${id}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tipo, nota })
   });
+  const gestion = await res.json();
+  // Si hay archivo adjunto, subirlo
+  const fileInput = document.getElementById(`gestion-file-${id}`);
+  if (fileInput && fileInput.files[0]) {
+    const fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    await fetch(`/api/historial/${id}/${gestion.id}/archivo`, { method: 'POST', body: fd });
+    fileInput.value = '';
+  }
   document.getElementById(`nota-${id}`).value = '';
   await cargarHistorial(id);
   toast('Gestión registrada ✓', 'success');
