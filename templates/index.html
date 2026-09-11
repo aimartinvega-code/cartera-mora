@@ -1014,6 +1014,18 @@ function renderTabla(lista) {
               <label>Condiciones del acuerdo</label>
               <input id="d-cond-acuerdo-${c.id}" value="${c.condiciones_acuerdo || ''}" placeholder="Ej: 3 cuotas mensuales de $..." onblur="guardarDato(${c.id}, 'condiciones_acuerdo', this.value)">
             </div>
+            <div class="dato-row" style="grid-column:1/-1">
+              <label>Archivos del acuerdo</label>
+              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+                <label class="btn-hist" style="cursor:pointer;background:#f1f5f9;color:var(--navy);border:1.5px solid var(--border);font-size:0.8rem">
+                  📎 Adjuntar archivo
+                  <input type="file" id="acuerdo-file-${c.id}" style="display:none" accept=".pdf,.doc,.docx,.jpg,.png" onchange="subirArchivoAcuerdo(${c.id}, this)">
+                </label>
+                <div id="acuerdo-archivos-${c.id}" style="font-size:0.78rem;color:var(--slate)">
+                  ${c.acuerdo_archivos && c.acuerdo_archivos.length ? c.acuerdo_archivos.map(a => `<a href="/api/archivos/${c.id}/acuerdo/${a}" target="_blank" style="color:var(--navy);margin-right:0.5rem">📎 ${a}</a>`).join('') : ''}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
