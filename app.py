@@ -403,6 +403,8 @@ def add_historial(cid):
     data = load_data()
     entrada = request.json
     entrada['fecha'] = datetime.now().strftime('%d/%m/%Y %H:%M')
+    entrada['id'] = datetime.now().strftime('%Y%m%d%H%M%S%f')
+    entrada.setdefault('archivo', None)
     if str(cid) not in data['historial']:
         data['historial'][str(cid)] = []
     data['historial'][str(cid)].insert(0, entrada)
@@ -412,6 +414,33 @@ def add_historial(cid):
             break
     save_data(data)
     return jsonify(entrada)
+
+@app.route('/api/historial/<int:cid>/<gid>/archivo', methods=['POST'])
+@login_required
+def upload_archivo_gestion(cid, gid):
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file'}), 400
+    f = request.files['file']
+    if not f.filename:
+        return jsonify({'error': 'No filename'}), 400
+    carpeta = os.path.join(FILES_DIR, str(cid), 'gestiones')
+    os.makedirs(carpeta, exist_ok=True)
+    filename = secure_filename(f.filename)
+    f.save(os.path.join(carpeta, filename))
+    # Guardar referencia en la gestión
+    data = load_data()
+    for g in data.get('historial', {}).get(str(cid), []):
+        if g.get('id') == gid:
+            g['archivo'] = filename
+            break
+    save_data(data)
+    return jsonify({'ok': True, 'nombre': filename})
+
+@app.route('/api/historial/<int:cid>/<gid>/archivo/<filename>', methods=['GET'])
+@login_required
+def download_archivo_gestion(cid, gid, filename):
+    carpeta = os.path.join(FILES_DIR, str(cid), 'gestiones')
+    return send_file(os.path.join(carpeta, secure_filename(filename)), as_attachment=True)
 
 # --- Facturas ---
 @app.route('/api/facturas/<int:cid>', methods=['GET'])
