@@ -1556,6 +1556,19 @@ async function eliminarCliente(id) {
   toast('Cliente eliminado', '');
 }
 
+// ---- ARCHIVO ACUERDO ----
+async function subirArchivoAcuerdo(cid, input) {
+  if (!input.files[0]) return;
+  const fd = new FormData();
+  fd.append('file', input.files[0]);
+  const res = await fetch(`/api/archivos/${cid}/acuerdo`, { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data.ok) {
+    await cargarClientes();
+    toast('Archivo adjunto al acuerdo ✓', 'success');
+  }
+}
+
 // ---- TIPO CLIENTE ----
 async function setTipoClienteBtn(id, tipo) {
   await guardarDato(id, 'tipo_cliente', tipo);
