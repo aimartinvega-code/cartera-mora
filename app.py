@@ -306,7 +306,7 @@ def get_clientes():
             if p.get('tipo') in ('parcial', 'total'):
                 pagado += p.get('monto', 0) or 0
             elif p.get('tipo') == 'cheque':
-                if p.get('cheque_rechazado'):
+                if p.get('cheque_rechazado') or p.get('cheque_estado') == 'rechazado':
                     pass
                 elif p.get('cheque_cobrado') or p.get('cheque_estado') == 'cobrado':
                     pagado += p.get('monto', 0) or 0
