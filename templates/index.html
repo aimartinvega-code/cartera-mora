@@ -2374,7 +2374,7 @@ async function abrirDetalle(tipo) {
     );
     const chequesPorCliente = {};
     resPagos.forEach(({ id, pagos }) => {
-      const pendientes = pagos.filter(p => p.tipo === 'cheque' && !p.cheque_cobrado);
+      const pendientes = pagos.filter(p => p.tipo === 'cheque' && !p.cheque_cobrado && p.cheque_estado !== 'cobrado' && !p.cheque_rechazado && p.cheque_estado !== 'rechazado');
       if (pendientes.length) chequesPorCliente[id] = pendientes;
     });
     clientes_filtrados = clientes.filter(c => chequesPorCliente[c.id]);
