@@ -659,12 +659,17 @@ def get_resumen():
                     if p.get('tipo') in ('parcial',):
                         pagado += p.get('monto', 0) or 0
                     elif p.get('tipo') == 'cheque':
-                        try:
-                            fc = datetime.strptime(p.get('fecha_cobro_cheque', ''), '%Y-%m-%d').date()
-                            if fc <= hoy:
+                        if p.get('cheque_rechazado') or p.get('cheque_estado') == 'rechazado':
+                                pass
+                            elif p.get('cheque_cobrado') or p.get('cheque_estado') == 'cobrado':
                                 pagado += p.get('monto', 0) or 0
                             else:
-                                cheque_pend += p.get('monto', 0) or 0
+                                try:
+                                    fc = datetime.strptime(p.get('fecha_cobro_cheque', ''), '%Y-%m-%d').date()
+                                    if fc <= hoy:
+                                        pagado += p.get('monto', 0) or 0
+                                    else:
+                                        cheque_pend += p.get('monto', 0) or 0
                         except:
                             pass
 
