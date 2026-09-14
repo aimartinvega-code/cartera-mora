@@ -1237,8 +1237,8 @@ function renderPagos(id, pagos) {
     container.innerHTML = '<span class="hist-empty">Sin pagos registrados.</span>';
     return;
   }
-  const totalPagado = pagos.filter(p => p.tipo !== 'cheque' || p.cheque_cobrado).reduce((s, p) => s + (p.monto || 0), 0);
-  const totalChequesPend = pagos.filter(p => p.tipo === 'cheque' && !p.cheque_cobrado).reduce((s, p) => s + (p.monto || 0), 0);
+  const totalPagado = pagos.filter(p => p.tipo !== 'cheque' || p.cheque_cobrado || p.cheque_estado === 'cobrado').reduce((s, p) => s + (p.monto || 0), 0);
+  const totalChequesPend = pagos.filter(p => p.tipo === 'cheque' && !p.cheque_cobrado && p.cheque_estado !== 'cobrado' && !p.cheque_rechazado && p.cheque_estado !== 'rechazado').reduce((s, p) => s + (p.monto || 0), 0);
   container.innerHTML = `
     <div style="margin-bottom:0.5rem;font-size:0.82rem;font-weight:700;color:var(--green)">
       Total pagado: ${fmt(totalPagado)}
