@@ -1707,9 +1707,20 @@ async function guardarNuevo() {
       body: JSON.stringify({ numero: fNum, monto: fMonto, fecha_mora: fFecha, descripcion: fDesc })
     });
   }
+  // Guardar facturas adicionales
+  for (let i = 1; i < facturasData.length; i++) {
+    const f = facturasData[i];
+    if (f.monto > 0 || f.num) {
+      await fetch(`/api/facturas/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ numero: f.num, monto: f.monto, fecha_mora: f.fecha, descripcion: f.desc })
+      });
+    }
+  }
 
   cerrarModal();
-  ['m-razon','m-cuit','m-domicilio','m-localidad','m-cp','m-provincia','m-obs','m-f-num','m-f-monto','m-f-fecha','m-f-desc'].forEach(id => {
+  ['m-razon','m-cuit','m-domicilio','m-localidad','m-cp','m-provincia','m-obs'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
