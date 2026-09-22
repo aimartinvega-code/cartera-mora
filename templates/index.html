@@ -856,13 +856,17 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
     <div class="form-row"><label>Observaciones</label><input id="m-obs" placeholder="Notas iniciales"></div>
 
     <div style="border-top:1.5px solid var(--border);margin:0.75rem 0 0.6rem"></div>
-    <div style="font-size:0.75rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.6rem">Primera factura <span style="font-weight:400;text-transform:none;color:var(--muted)">(opcional)</span></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem">
-      <div class="form-row" style="margin:0"><label>N° Factura</label><input id="m-f-num" placeholder="0001-00012345"></div>
-      <div class="form-row" style="margin:0"><label>Monto (ARS)</label><input id="m-f-monto" type="number" placeholder="0"></div>
-      <div class="form-row" style="margin:0"><label>Fecha de mora</label><input id="m-f-fecha" type="date"></div>
-      <div class="form-row" style="margin:0"><label>Descripción</label><input id="m-f-desc" placeholder="Descripción"></div>
+    <div style="font-size:0.75rem;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.6rem">Facturas <span style="font-weight:400;text-transform:none;color:var(--muted)">(opcional)</span></div>
+    <div id="m-facturas-list">
+      <div class="m-factura-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:0.4rem;margin-bottom:0.4rem;align-items:end">
+        <div><label style="font-size:0.7rem;color:var(--slate)">N° Factura</label><input class="m-f-num" placeholder="0001-00012345" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--border);border-radius:6px;font-size:0.8rem"></div>
+        <div><label style="font-size:0.7rem;color:var(--slate)">Monto (ARS)</label><input class="m-f-monto" type="number" placeholder="0" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--border);border-radius:6px;font-size:0.8rem"></div>
+        <div><label style="font-size:0.7rem;color:var(--slate)">Fecha mora</label><input class="m-f-fecha" type="date" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--border);border-radius:6px;font-size:0.8rem"></div>
+        <div><label style="font-size:0.7rem;color:var(--slate)">Descripción</label><input class="m-f-desc" placeholder="Descripción" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--border);border-radius:6px;font-size:0.8rem"></div>
+        <div style="padding-bottom:2px"><button onclick="this.closest('.m-factura-row').remove()" style="padding:0.35rem 0.5rem;background:#fee2e2;color:#dc2626;border:none;border-radius:5px;cursor:pointer;font-size:0.85rem">✕</button></div>
+      </div>
     </div>
+    <button type="button" onclick="agregarFilaFactura()" style="margin-top:0.3rem;padding:0.35rem 0.8rem;background:#f1f5f9;border:1.5px solid var(--border);border-radius:6px;font-size:0.8rem;cursor:pointer;color:var(--navy)">＋ Agregar otra factura</button>
 
     <div class="modal-actions">
       <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
