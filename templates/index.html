@@ -1631,12 +1631,30 @@ function setModalTipo(tipo) {
   });
 }
 
+function agregarFilaFactura() {
+  const row = document.createElement('div');
+  row.className = 'm-factura-row';
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:0.4rem;margin-bottom:0.4rem;align-items:end';
+  row.innerHTML = `
+    <div><label style="font-size:0.7rem;color:var(--slate)">N° Factura</label><input class="m-f-num" placeholder="0001-00012345" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--border);border-radius:6px;font-size:0.8rem"></div>
+    <div><label style="font-size:0.7rem;color:var(--slate)">Monto (ARS)</label><input class="m-f-monto" type="number" placeholder="0" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--border);border-radius:6px;font-size:0.8rem"></div>
+    <div><label style="font-size:0.7rem;color:var(--slate)">Fecha mora</label><input class="m-f-fecha" type="date" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--border);border-radius:6px;font-size:0.8rem"></div>
+    <div><label style="font-size:0.7rem;color:var(--slate)">Descripción</label><input class="m-f-desc" placeholder="Descripción" style="width:100%;padding:0.35rem 0.5rem;border:1.5px solid var(--border);border-radius:6px;font-size:0.8rem"></div>
+    <div style="padding-bottom:2px"><button onclick="this.closest('.m-factura-row').remove()" style="padding:0.35rem 0.5rem;background:#fee2e2;color:#dc2626;border:none;border-radius:5px;cursor:pointer;font-size:0.85rem">✕</button></div>
+  `;
+  document.getElementById('m-facturas-list').appendChild(row);
+}
+
 function abrirModal() {
   document.getElementById('m-tipo-cliente').value = '';
   ['estacion','distribuidor'].forEach(t => {
     const btn = document.getElementById('m-tipo-' + t);
     if (btn) { btn.style.border = '2px solid var(--border)'; btn.style.background = '#fff'; btn.style.fontWeight = '400'; }
   });
+  // Reset facturas a una sola fila vacía
+  const lista = document.getElementById('m-facturas-list');
+  lista.querySelectorAll('.m-factura-row').forEach((r, i) => { if (i > 0) r.remove(); });
+  lista.querySelectorAll('input').forEach(i => i.value = '');
   document.getElementById('modal-overlay').classList.add('open');
 }
 function cerrarModal() { document.getElementById('modal-overlay').classList.remove('open'); }
@@ -1645,10 +1663,20 @@ async function guardarNuevo() {
   const razon = document.getElementById('m-razon').value.trim();
   if (!razon) { toast('Ingresá una razón social', 'error'); return; }
 
-  const fMonto = parseFloat(document.getElementById('m-f-monto').value) || 0;
-  const fFecha = document.getElementById('m-f-fecha').value;
-  const fNum = document.getElementById('m-f-num').value.trim();
-  const fDesc = document.getElementById('m-f-desc').value.trim();
+  // Leer múltiples facturas
+  const facturaRows = document.querySelectorAll('.m-factura-row');
+  const facturasData = [];
+  facturaRows.forEach(row => {
+    const monto = parseFloat(row.querySelector('.m-f-monto').value) || 0;
+    const fecha = row.querySelector('.m-f-fecha').value;
+    const num = row.querySelector('.m-f-num').value.trim();
+    const desc = row.querySelector('.m-f-desc').value.trim();
+    if (monto > 0 || num || fecha) facturasData.push({ monto, fecha, num, desc });
+  });
+  const fMonto = facturasData.length > 0 ? facturasData[0].monto : 0;
+  const fFecha = facturasData.length > 0 ? facturasData[0].fecha : '';
+  const fNum = facturasData.length > 0 ? facturasData[0].num : '';
+  const fDesc = facturasData.length > 0 ? facturasData[0].desc : '';
 
   const nuevo = {
     razon_social: razon,
