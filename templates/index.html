@@ -575,7 +575,10 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
 #proc-table input, #proc-table select, #proc-table textarea { width:100%; border:1px solid transparent; background:transparent; padding:0.35rem 0.4rem; font:inherit; border-radius:5px; color:var(--text); }
 #proc-table input:hover, #proc-table select:hover, #proc-table textarea:hover { border-color:var(--border); }
 #proc-table input:focus, #proc-table select:focus, #proc-table textarea:focus { border-color:var(--navy); background:#fff; outline:none; }
-#proc-table textarea { resize:vertical; min-height:2.1rem; }
+#proc-table textarea { resize:none; overflow:hidden; min-height:2.2rem; line-height:1.35; white-space:pre-wrap; word-break:break-word; }
+#proc-table { min-width:1300px; table-layout:fixed; width:100%; }
+#proc-table td { vertical-align:top; }
+#proc-table select { text-overflow:ellipsis; }
 #proc-table td { padding:0.25rem 0.4rem; vertical-align:top; }
 #proc-table th { padding:0.6rem 0.6rem; text-align:left; font-size:0.75rem; }
 #proc-table tr.proc-prox { background:#fef9c3; }
@@ -1778,13 +1781,13 @@ async function guardarNuevo() {
 // ---- PROCESOS JUDICIALES ----
 var PROC_DEF = {
   mediaciones: {
-    cols: [['expte','Expte. N°','text','110px'],['caratula','Carátula','textarea','340px'],['fecha_mediacion','Fecha de mediación','date','140px'],['notificado','¿Debidamente notificado?','sel:Sí|No|Pendiente','160px'],['cierre','Cierre','sel:En trámite|Cerrada con acuerdo|Cerrada sin acuerdo','180px'],['observaciones','Observaciones','textarea','260px'],['cliente_id','Cliente vinculado','cli','190px']]
+    cols: [['expte','Expte. N°','text','110px'],['caratula','Carátula','textarea','400px'],['fecha_mediacion','Fecha de mediación','date','140px'],['notificado','¿Debidamente notificado?','sel:Sí|No|Pendiente','160px'],['cierre','Cierre','sel:En trámite|Cerrada con acuerdo|Cerrada sin acuerdo','180px'],['observaciones','Observaciones','textarea','380px'],['cliente_id','Cliente vinculado','cli','230px']]
   },
   ejecutivos: {
-    cols: [['expte','Expte. N°','text','110px'],['caratula','Carátula','textarea','340px'],['estado','Estado del juicio','text','200px'],['observaciones','Observaciones','textarea','300px'],['cliente_id','Cliente vinculado','cli','190px']]
+    cols: [['expte','Expte. N°','text','110px'],['caratula','Carátula','textarea','400px'],['estado','Estado del juicio','text','200px'],['observaciones','Observaciones','textarea','380px'],['cliente_id','Cliente vinculado','cli','230px']]
   },
   extrajudiciales: {
-    cols: [['caso','Caso','textarea','340px'],['estado','Estado del convenio','text','200px'],['observaciones','Observaciones','textarea','300px'],['cliente_id','Cliente vinculado','cli','190px']]
+    cols: [['caso','Caso','textarea','400px'],['estado','Estado del convenio','text','200px'],['observaciones','Observaciones','textarea','380px'],['cliente_id','Cliente vinculado','cli','230px']]
   }
 };
 var procData = {mediaciones:[], ejecutivos:[], extrajudiciales:[]};
@@ -1807,7 +1810,7 @@ async function loadProcesos() {
 function renderProcesos() {
   var def = PROC_DEF[procTipo];
   var head = '<tr>';
-  def.cols.forEach(function(c) { head += '<th style="min-width:' + c[3] + '">' + c[1] + '</th>'; });
+  def.cols.forEach(function(c) { head += '<th style="width:' + c[3] + '">' + c[1] + '</th>'; });
   head += '<th style="width:40px"></th></tr>';
   document.getElementById('proc-head').innerHTML = head;
   var hoy = new Date(); hoy.setHours(0,0,0,0);
@@ -1851,6 +1854,14 @@ function renderProcesos() {
   });
   if (!html) html = '<tr><td colspan="' + (def.cols.length + 1) + '" style="text-align:center;color:var(--muted);padding:1.5rem">Sin registros. Usá "+ Agregar fila".</td></tr>';
   document.getElementById('proc-body').innerHTML = html;
+  procAjustar();
+}
+
+function procAjustar() {
+  document.querySelectorAll('#proc-body textarea').forEach(function(t) {
+    t.style.height = 'auto';
+    t.style.height = (t.scrollHeight + 2) + 'px';
+  });
 }
 
 function procBind() {
@@ -1902,6 +1913,10 @@ function procBind() {
     if (typeof cargarClientes === 'function') { try { cargarClientes(); } catch (er) {} }
     loadProcesos();
   });
+  document.getElementById('proc-body').addEventListener('input', function(e) {
+    if (e.target.tagName === 'TEXTAREA') { e.target.style.height = 'auto'; e.target.style.height = (e.target.scrollHeight + 2) + 'px'; }
+  });
+  window.addEventListener('resize', procAjustar);
   document.getElementById('proc-body').addEventListener('change', async function(e) {
     var el = e.target, tr = el.closest('tr');
     if (!tr || !el.getAttribute('data-k')) return;
