@@ -369,6 +369,12 @@ def update_cliente(cid):
             estado_anterior = c.get('estado', '')
             estado_nuevo = updates.get('estado', estado_anterior)
             data['clientes'][i].update(updates)
+            if 'observaciones' in updates and 'procesos' in data:
+                vinc = _linked(data, cid)
+                for _, x in vinc:
+                    x['observaciones'] = (updates.get('observaciones') or '').strip()
+                    x.pop('_obs_line', None)
+                    x.pop('_obs_cid', None)
             save_data(data)
             if estado_anterior != estado_nuevo:
                 enviar_email_cambio_estado(data['clientes'][i], estado_anterior, estado_nuevo)
@@ -672,7 +678,51 @@ def get_procesos(data):
             for r in p.get(tipo, []):
                 sync_proceso(data, tipo, r)
         save_data(data)
+    if p.get('sync_v') < 3:
+        p['sync_v'] = 3
+        for c in data['clientes']:
+            vinc = _linked(data, c['id'])
+            if not vinc:
+                continue
+            for tipo, r in vinc:
+                _quitar_obs(c, r)
+                r.pop('_obs_cid', None)
+            partes = []
+            for t in [(c.get('observaciones') or '')] + [(r.get('observaciones') or '') for _, r in vinc]:
+                t = t.strip()
+                if t and not any(t in x for x in partes):
+                    partes = [x for x in partes if x not in t] + [t]
+            junto = '\n'.join(partes)
+            c['observaciones'] = junto
+            for _, r in vinc:
+                r['observaciones'] = junto
+        save_data(data)
     return p
+
+def _linked(data, cid):
+    """Procesos vinculados a un cliente: lista de (tipo, registro)."""
+    out = []
+    for tipo in PROCESOS_CAMPOS:
+        for r in data.get('procesos', {}).get(tipo, []):
+            if str(r.get('cliente_id')) == str(cid):
+                out.append((tipo, r))
+    return out
+
+def _migrar_obs(data, tipo, r):
+    cliente = next((c for c in data['clientes'] if str(c['id']) == str(r.get('cliente_id'))), None)
+    if not cliente or len(_linked(data, cliente['id'])) != 1:
+        return
+    _quitar_obs(cliente, r)
+    r.pop('_obs_cid', None)
+    base = (cliente.get('observaciones') or '').strip()
+    mine = (r.get('observaciones') or '').strip()
+    if base and mine and base != mine:
+        junto = base if mine in base else base + '\n' + mine
+        cliente['observaciones'] = r['observaciones'] = junto
+    elif base and not mine:
+        r['observaciones'] = base
+    elif mine and not base:
+        cliente['observaciones'] = mine
 
 def _tokens(s):
     s = unicodedata.normalize('NFD', str(s or '')).encode('ascii', 'ignore').decode().upper()
@@ -694,7 +744,7 @@ def _titulo_evento(tipo, r):
     cara = r.get('caratula') or r.get('caso') or ''
     return f"{PROC_NOMBRE[tipo]} Exp. {ref} – {cara}".replace('Exp.  –', '–')
 
-def sync_proceso(data, tipo, r):
+def sync_proceso(data, tipo, r, origen=''):
     """Sincroniza un proceso con el calendario y con la ficha del cliente vinculado."""
     # 1) vincular cliente automáticamente si nunca se definió
     if r.get('cliente_id') in (None, ''):
@@ -739,13 +789,33 @@ def sync_proceso(data, tipo, r):
         elif tipo == 'extrajudiciales' and est == 'PREJUDICIAL':
             cliente['estado'] = 'ACUERDO EXTRAJUDICIAL'
             cliente['sub_estado'] = ''
-        _poner_obs(cliente, r, tipo)
+        _sync_obs(data, tipo, r, cliente, origen)
     # si dejó de estar vinculado, limpiar la línea anterior
     if r.get('_obs_cid') and (cliente is None or str(cliente['id']) != str(r['_obs_cid'])):
         anterior = next((c for c in data['clientes'] if str(c['id']) == str(r['_obs_cid'])), None)
         if anterior:
             _quitar_obs(anterior, r)
         r.pop('_obs_cid', None)
+
+def _sync_obs(data, tipo, r, cliente, origen):
+    """La observación es la misma en la ficha del cliente y en todos sus procesos vinculados."""
+    vinc = _linked(data, cliente['id'])
+    for _, x in vinc:
+        _quitar_obs(cliente, x)
+        x.pop('_obs_cid', None)
+    base = (cliente.get('observaciones') or '').strip()
+    mine = (r.get('observaciones') or '').strip()
+    if origen == 'obs':
+        texto = mine
+    elif not mine and base:
+        texto = base
+    elif mine and not base:
+        texto = mine
+    else:
+        return
+    cliente['observaciones'] = texto
+    for _, x in vinc:
+        x['observaciones'] = texto
 
 def _quitar_obs(cliente, r):
     linea = r.get('_obs_line')
@@ -821,9 +891,9 @@ def api_procesos_edit(tipo, pid):
             for c in PROCESOS_CAMPOS[tipo]:
                 if c in body:
                     r[c] = str(body[c] or '')
-            sync_proceso(data, tipo, r)
+            sync_proceso(data, tipo, r, 'obs' if 'observaciones' in body else '')
             save_data(data)
-            return jsonify({'ok': True, 'cliente_id': r.get('cliente_id', '')})
+            return jsonify({'ok': True, 'cliente_id': r.get('cliente_id', ''), 'observaciones': r.get('observaciones', '')})
     return jsonify({'error': 'No encontrado'}), 404
 
 @app.route('/api/procesos/<tipo>/<int:pid>', methods=['DELETE'])

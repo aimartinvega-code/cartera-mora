@@ -1911,7 +1911,7 @@ function procBind() {
     if (!res.ok) { toast('No se pudo guardar', 'error'); return; }
     procData[procTipo].forEach(function(r) { if (r.id === id) r[k] = el.value; });
     try { var j = await res.json(); procData[procTipo].forEach(function(r) { if (r.id === id && j.cliente_id !== undefined) r.cliente_id = j.cliente_id; }); } catch (er) {}
-    if (k === 'fecha_mediacion' || k === 'cierre' || k === 'cliente_id' || k === 'caratula' || k === 'caso') renderProcesos();
+    if (k === 'fecha_mediacion' || k === 'cierre' || k === 'observaciones' || k === 'cliente_id' || k === 'caratula' || k === 'caso') renderProcesos();
     if (typeof cargarClientes === 'function') { try { cargarClientes(); } catch (er) {} }
     toast('Guardado ✓', 'success');
   });
