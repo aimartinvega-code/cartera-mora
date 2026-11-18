@@ -731,9 +731,21 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
         <div style="font-size:1rem;font-weight:700;color:var(--navy)">⚖️ Procesos judiciales en trámite</div>
         <div style="font-size:0.78rem;color:var(--slate)">Seguimiento de mediaciones, juicios ejecutivos y gestiones extrajudiciales. Los cambios se guardan solos.</div>
       </div>
-      <div style="display:flex;gap:0.5rem">
-        <button class="btn-add" id="proc-btn-add" type="button">+ Agregar fila</button>
-        <a class="btn-add" href="/api/procesos/exportar" style="text-decoration:none;background:var(--green)">⬇ Exportar Excel</a>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+        <button class="btn-add" id="proc-btn-add" type="button">+ Agregar proceso</button>
+        <button class="btn-add" id="proc-btn-import" type="button" style="background:var(--cyan)">⬆ Importar Excel</button>
+        <input type="file" id="proc-file" accept=".xlsx" style="display:none">
+        <a class="btn-add" href="/api/procesos/exportar" style="text-decoration:none;background:var(--green)">⬇ Excel</a>
+        <a class="btn-add" href="/api/procesos/exportar-pdf" style="text-decoration:none;background:var(--red)">⬇ PDF</a>
+      </div>
+    </div>
+    <div id="proc-nuevo" style="display:none;background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:0.8rem;margin-bottom:0.8rem">
+      <div style="font-weight:700;color:var(--navy);margin-bottom:0.5rem">¿Qué tipo de proceso querés agregar?</div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+        <button type="button" class="proc-sub proc-nuevo-op" data-tipo="mediaciones">Mediación</button>
+        <button type="button" class="proc-sub proc-nuevo-op" data-tipo="ejecutivos">Judicial (ejecutivo)</button>
+        <button type="button" class="proc-sub proc-nuevo-op" data-tipo="extrajudiciales">Extrajudicial</button>
+        <button type="button" class="proc-sub" id="proc-nuevo-cancel">Cancelar</button>
       </div>
     </div>
     <div style="display:flex;gap:0.4rem;margin-bottom:0.8rem" id="proc-subtabs">
@@ -1766,13 +1778,13 @@ async function guardarNuevo() {
 // ---- PROCESOS JUDICIALES ----
 var PROC_DEF = {
   mediaciones: {
-    cols: [['expte','Expte. N°','text','110px'],['caratula','Carátula','textarea','340px'],['fecha_mediacion','Fecha de mediación','date','140px'],['notificado','¿Debidamente notificado?','sel:Sí|No|Pendiente','160px'],['cierre','Cierre','sel:En trámite|Cerrada con acuerdo|Cerrada sin acuerdo','180px'],['observaciones','Observaciones','textarea','260px']]
+    cols: [['expte','Expte. N°','text','110px'],['caratula','Carátula','textarea','340px'],['fecha_mediacion','Fecha de mediación','date','140px'],['notificado','¿Debidamente notificado?','sel:Sí|No|Pendiente','160px'],['cierre','Cierre','sel:En trámite|Cerrada con acuerdo|Cerrada sin acuerdo','180px'],['observaciones','Observaciones','textarea','260px'],['cliente_id','Cliente vinculado','cli','190px']]
   },
   ejecutivos: {
-    cols: [['expte','Expte. N°','text','110px'],['caratula','Carátula','textarea','340px'],['estado','Estado del juicio','text','200px'],['observaciones','Observaciones','textarea','300px']]
+    cols: [['expte','Expte. N°','text','110px'],['caratula','Carátula','textarea','340px'],['estado','Estado del juicio','text','200px'],['observaciones','Observaciones','textarea','300px'],['cliente_id','Cliente vinculado','cli','190px']]
   },
   extrajudiciales: {
-    cols: [['caso','Caso','textarea','340px'],['estado','Estado del convenio','text','200px'],['observaciones','Observaciones','textarea','300px']]
+    cols: [['caso','Caso','textarea','340px'],['estado','Estado del convenio','text','200px'],['observaciones','Observaciones','textarea','300px'],['cliente_id','Cliente vinculado','cli','190px']]
   }
 };
 var procData = {mediaciones:[], ejecutivos:[], extrajudiciales:[]};
@@ -1818,6 +1830,12 @@ function renderProcesos() {
         html += '<textarea rows="2" data-k="' + k + '">' + procEsc(v) + '</textarea>';
       } else if (t === 'date') {
         html += '<input type="date" data-k="' + k + '" value="' + procEsc(v) + '">';
+      } else if (t === 'cli') {
+        html += '<select data-k="' + k + '"><option value="0">— sin vincular —</option>';
+        (typeof clientes !== 'undefined' ? clientes : []).forEach(function(c) {
+          html += '<option value="' + c.id + '"' + (String(c.id) === String(v) ? ' selected' : '') + '>' + procEsc(c.razon_social) + '</option>';
+        });
+        html += '</select>';
       } else if (t.indexOf('sel:') === 0) {
         html += '<select data-k="' + k + '"><option value=""></option>';
         t.slice(4).split('|').forEach(function(o) {
@@ -1844,12 +1862,45 @@ function procBind() {
     b.classList.add('active');
     renderProcesos();
   });
-  document.getElementById('proc-btn-add').addEventListener('click', async function() {
-    var res = await fetch('/api/procesos/' + procTipo, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
-    if (!res.ok) { toast('No se pudo agregar', 'error'); return; }
-    var nuevo = await res.json();
-    procData[procTipo].push(nuevo);
-    renderProcesos();
+  document.getElementById('proc-btn-add').addEventListener('click', function() {
+    var p = document.getElementById('proc-nuevo');
+    p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  });
+  document.getElementById('proc-nuevo-cancel').addEventListener('click', function() {
+    document.getElementById('proc-nuevo').style.display = 'none';
+  });
+  document.querySelectorAll('.proc-nuevo-op').forEach(function(b) {
+    b.addEventListener('click', async function() {
+      var tipo = b.getAttribute('data-tipo');
+      var res = await fetch('/api/procesos/' + tipo, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+      if (!res.ok) { toast('No se pudo agregar', 'error'); return; }
+      var nuevo = await res.json();
+      procData[tipo].push(nuevo);
+      procTipo = tipo;
+      document.querySelectorAll('.proc-sub[data-tipo]').forEach(function(x) {
+        if (x.classList.contains('proc-nuevo-op')) return;
+        x.classList.toggle('active', x.getAttribute('data-tipo') === tipo);
+      });
+      document.getElementById('proc-nuevo').style.display = 'none';
+      renderProcesos();
+      toast('Proceso agregado ✓', 'success');
+    });
+  });
+  document.getElementById('proc-btn-import').addEventListener('click', function() {
+    document.getElementById('proc-file').click();
+  });
+  document.getElementById('proc-file').addEventListener('change', async function(e) {
+    var f = e.target.files[0];
+    if (!f) return;
+    var fd = new FormData();
+    fd.append('file', f);
+    var res = await fetch('/api/procesos/importar', {method:'POST', body: fd});
+    var r = await res.json();
+    e.target.value = '';
+    if (!res.ok) { toast(r.error || 'No se pudo importar', 'error'); return; }
+    toast('Importados: ' + r.agregados + ' · ya existían: ' + r.repetidos, 'success');
+    if (typeof cargarClientes === 'function') { try { cargarClientes(); } catch (er) {} }
+    loadProcesos();
   });
   document.getElementById('proc-body').addEventListener('change', async function(e) {
     var el = e.target, tr = el.closest('tr');
@@ -1859,7 +1910,9 @@ function procBind() {
     var res = await fetch('/api/procesos/' + procTipo + '/' + id, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
     if (!res.ok) { toast('No se pudo guardar', 'error'); return; }
     procData[procTipo].forEach(function(r) { if (r.id === id) r[k] = el.value; });
-    if (k === 'fecha_mediacion' || k === 'cierre') renderProcesos();
+    try { var j = await res.json(); procData[procTipo].forEach(function(r) { if (r.id === id && j.cliente_id !== undefined) r.cliente_id = j.cliente_id; }); } catch (er) {}
+    if (k === 'fecha_mediacion' || k === 'cierre' || k === 'cliente_id' || k === 'caratula' || k === 'caso') renderProcesos();
+    if (typeof cargarClientes === 'function') { try { cargarClientes(); } catch (er) {} }
     toast('Guardado ✓', 'success');
   });
   document.getElementById('proc-body').addEventListener('click', async function(e) {

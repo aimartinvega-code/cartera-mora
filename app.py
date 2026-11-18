@@ -629,11 +629,15 @@ def delete_pago(cid, pid):
 
 
 # ================= PROCESOS JUDICIALES =================
+import unicodedata, re as _re
+
 PROCESOS_CAMPOS = {
-    'mediaciones': ['expte', 'caratula', 'fecha_mediacion', 'notificado', 'cierre', 'observaciones'],
-    'ejecutivos': ['expte', 'caratula', 'estado', 'observaciones'],
-    'extrajudiciales': ['caso', 'estado', 'observaciones'],
+    'mediaciones': ['expte', 'caratula', 'fecha_mediacion', 'notificado', 'cierre', 'observaciones', 'cliente_id'],
+    'ejecutivos': ['expte', 'caratula', 'estado', 'observaciones', 'cliente_id'],
+    'extrajudiciales': ['caso', 'estado', 'observaciones', 'cliente_id'],
 }
+PROC_NOMBRE = {'mediaciones': 'Mediación', 'ejecutivos': 'Ejecutivo', 'extrajudiciales': 'Extrajudicial'}
+CIERRE_A_SUB = {'En trámite': 'En proceso', 'Cerrada con acuerdo': 'Con acuerdo', 'Cerrada sin acuerdo': 'Sin acuerdo'}
 
 def procesos_iniciales():
     M = 'LUBRE SRL c/ %s s/ COBRO ORDINARIO'
@@ -661,15 +665,130 @@ def procesos_iniciales():
 def get_procesos(data):
     if 'procesos' not in data:
         data['procesos'] = procesos_iniciales()
+    p = data['procesos']
+    if not p.get('sync_v'):
+        p['sync_v'] = 1
+        for tipo in PROCESOS_CAMPOS:
+            for r in p.get(tipo, []):
+                sync_proceso(data, tipo, r)
         save_data(data)
-    return data['procesos']
+    return p
+
+def _tokens(s):
+    s = unicodedata.normalize('NFD', str(s or '')).encode('ascii', 'ignore').decode().upper()
+    s = _re.sub(r'[^A-Z0-9 ]', ' ', s)
+    return [t for t in s.split() if t not in ('SRL', 'SAS', 'SA', 'S', 'R', 'L', 'DE', 'DEL', 'LA', 'LOS', 'EL')]
+
+def auto_cliente(data, texto):
+    """Busca el cliente cuya razón social tiene todas sus palabras dentro del texto."""
+    tk = set(_tokens(texto))
+    mejor, n = None, 0
+    for c in data['clientes']:
+        ct = _tokens(c.get('razon_social', ''))
+        if ct and set(ct) <= tk and len(ct) > n:
+            mejor, n = c, len(ct)
+    return mejor['id'] if mejor else None
+
+def _titulo_evento(tipo, r):
+    ref = r.get('expte') or r.get('caso') or ''
+    cara = r.get('caratula') or r.get('caso') or ''
+    return f"{PROC_NOMBRE[tipo]} Exp. {ref} – {cara}".replace('Exp.  –', '–')
+
+def sync_proceso(data, tipo, r):
+    """Sincroniza un proceso con el calendario y con la ficha del cliente vinculado."""
+    # 1) vincular cliente automáticamente si nunca se definió
+    if r.get('cliente_id') in (None, ''):
+        auto = auto_cliente(data, r.get('caratula') or r.get('caso'))
+        r['cliente_id'] = str(auto) if auto else ''
+    cliente = None
+    if r.get('cliente_id') not in ('', '0', None):
+        cliente = next((c for c in data['clientes'] if str(c['id']) == str(r['cliente_id'])), None)
+
+    # 2) calendario
+    clave = f"{tipo}-{r['id']}"
+    ev = load_eventos()
+    cambio = False
+    for f in list(ev.keys()):
+        antes = len(ev[f])
+        ev[f] = [x for x in ev[f] if x.get('proc') != clave]
+        if len(ev[f]) != antes:
+            cambio = True
+        if not ev[f]:
+            del ev[f]
+    if tipo == 'mediaciones' and r.get('fecha_mediacion'):
+        ev.setdefault(r['fecha_mediacion'], []).append({
+            'id': 'p' + clave + datetime.now().strftime('%H%M%S%f'),
+            'titulo': _titulo_evento(tipo, r), 'tipo': 'audiencia',
+            'cliente': cliente['razon_social'] if cliente else '', 'proc': clave})
+        cambio = True
+    if cambio:
+        save_eventos(ev)
+
+    # 3) ficha del cliente (etapa + observaciones)
+    if cliente is not None:
+        est = cliente.get('estado', '')
+        if tipo == 'mediaciones':
+            if est == 'PREJUDICIAL':
+                cliente['estado'] = 'MEDIACION'
+                cliente['sub_estado'] = CIERRE_A_SUB.get(r.get('cierre'), 'En proceso')
+            elif est == 'MEDIACION' and r.get('cierre') in CIERRE_A_SUB:
+                cliente['sub_estado'] = CIERRE_A_SUB[r['cierre']]
+        elif tipo == 'ejecutivos' and est in ('PREJUDICIAL', 'MEDIACION'):
+            cliente['estado'] = 'JUICIO'
+            cliente['sub_estado'] = 'En proceso'
+        elif tipo == 'extrajudiciales' and est == 'PREJUDICIAL':
+            cliente['estado'] = 'ACUERDO EXTRAJUDICIAL'
+            cliente['sub_estado'] = ''
+        _poner_obs(cliente, r, tipo)
+    # si dejó de estar vinculado, limpiar la línea anterior
+    if r.get('_obs_cid') and (cliente is None or str(cliente['id']) != str(r['_obs_cid'])):
+        anterior = next((c for c in data['clientes'] if str(c['id']) == str(r['_obs_cid'])), None)
+        if anterior:
+            _quitar_obs(anterior, r)
+        r.pop('_obs_cid', None)
+
+def _quitar_obs(cliente, r):
+    linea = r.get('_obs_line')
+    if linea:
+        lineas = [l for l in (cliente.get('observaciones') or '').split('\n') if l.strip() != linea.strip()]
+        cliente['observaciones'] = '\n'.join(lineas).strip()
+    r.pop('_obs_line', None)
+
+def _poner_obs(cliente, r, tipo):
+    _quitar_obs(cliente, r)
+    ref = r.get('expte') or ''
+    txt = (r.get('observaciones') or '').strip()
+    if not txt:
+        r.pop('_obs_cid', None)
+        return
+    linea = f"⚖️ {PROC_NOMBRE[tipo]} {ref}: {txt}".replace('  ', ' ')
+    obs = (cliente.get('observaciones') or '').strip()
+    cliente['observaciones'] = (obs + '\n' + linea).strip() if obs else linea
+    r['_obs_line'] = linea
+    r['_obs_cid'] = str(cliente['id'])
+
+def _quitar_proceso(data, tipo, r):
+    clave = f"{tipo}-{r['id']}"
+    ev = load_eventos()
+    for f in list(ev.keys()):
+        ev[f] = [x for x in ev[f] if x.get('proc') != clave]
+        if not ev[f]:
+            del ev[f]
+    save_eventos(ev)
+    if r.get('_obs_cid'):
+        c = next((c for c in data['clientes'] if str(c['id']) == str(r['_obs_cid'])), None)
+        if c:
+            _quitar_obs(c, r)
+
+def _publico(r):
+    return {k: v for k, v in r.items() if not k.startswith('_')}
 
 @app.route('/api/procesos', methods=['GET'])
 @login_required
 def api_procesos():
     data = load_data()
     p = get_procesos(data)
-    return jsonify({k: p.get(k, []) for k in PROCESOS_CAMPOS})
+    return jsonify({k: [_publico(r) for r in p.get(k, [])] for k in PROCESOS_CAMPOS})
 
 @app.route('/api/procesos/<tipo>', methods=['POST'])
 @admin_required
@@ -684,9 +803,10 @@ def api_procesos_add(tipo):
     for c in PROCESOS_CAMPOS[tipo]:
         nuevo[c] = str(body.get(c, '') or '')
     p[tipo].append(nuevo)
+    sync_proceso(data, tipo, nuevo)
     save_data(data)
-    log_actividad('Proceso agregado', detalle=tipo)
-    return jsonify(nuevo)
+    log_actividad('Proceso agregado', detalle=PROC_NOMBRE[tipo])
+    return jsonify(_publico(nuevo))
 
 @app.route('/api/procesos/<tipo>/<int:pid>', methods=['PUT'])
 @admin_required
@@ -701,8 +821,9 @@ def api_procesos_edit(tipo, pid):
             for c in PROCESOS_CAMPOS[tipo]:
                 if c in body:
                     r[c] = str(body[c] or '')
+            sync_proceso(data, tipo, r)
             save_data(data)
-            return jsonify({'ok': True})
+            return jsonify({'ok': True, 'cliente_id': r.get('cliente_id', '')})
     return jsonify({'error': 'No encontrado'}), 404
 
 @app.route('/api/procesos/<tipo>/<int:pid>', methods=['DELETE'])
@@ -712,26 +833,37 @@ def api_procesos_del(tipo, pid):
         return jsonify({'error': 'Tipo inválido'}), 400
     data = load_data()
     p = get_procesos(data)
+    for r in p[tipo]:
+        if r['id'] == pid:
+            _quitar_proceso(data, tipo, r)
     p[tipo] = [r for r in p[tipo] if r['id'] != pid]
     save_data(data)
-    log_actividad('Proceso eliminado', detalle=tipo)
+    log_actividad('Proceso eliminado', detalle=PROC_NOMBRE[tipo])
     return jsonify({'ok': True})
+
+HOJAS_PROC = [
+    ('Mediaciones', 'mediaciones', ['Expte. N°', 'Carátula', 'Fecha de mediación', '¿Debidamente notificado?', 'Cierre', 'Observaciones'], ['expte', 'caratula', 'fecha_mediacion', 'notificado', 'cierre', 'observaciones']),
+    ('Ejecutivos (cheques)', 'ejecutivos', ['Expte. N°', 'Carátula', 'Estado del juicio', 'Observaciones'], ['expte', 'caratula', 'estado', 'observaciones']),
+    ('Extrajudiciales', 'extrajudiciales', ['Caso', 'Estado del convenio', 'Observaciones'], ['caso', 'estado', 'observaciones']),
+]
+
+def _fmt_fecha(v):
+    try:
+        return datetime.strptime(v, '%Y-%m-%d').strftime('%d/%m/%Y')
+    except Exception:
+        return v or ''
 
 @app.route('/api/procesos/exportar', methods=['GET'])
 @login_required
 def api_procesos_export():
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.worksheet.datavalidation import DataValidation
     data = load_data()
     p = get_procesos(data)
-    hojas = [
-        ('Mediaciones', 'mediaciones', ['Expte. N°', 'Carátula', 'Fecha de mediación', '¿Debidamente notificado?', 'Cierre', 'Observaciones'], ['expte', 'caratula', 'fecha_mediacion', 'notificado', 'cierre', 'observaciones']),
-        ('Ejecutivos (cheques)', 'ejecutivos', ['Expte. N°', 'Carátula', 'Estado del juicio', 'Observaciones'], ['expte', 'caratula', 'estado', 'observaciones']),
-        ('Extrajudiciales', 'extrajudiciales', ['Caso', 'Estado del convenio', 'Observaciones'], ['caso', 'estado', 'observaciones']),
-    ]
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
-    for nombre, tipo, heads, keys in hojas:
+    for nombre, tipo, heads, keys in HOJAS_PROC:
         ws = wb.create_sheet(nombre)
         ws.append(heads)
         for c in ws[1]:
@@ -756,11 +888,138 @@ def api_procesos_export():
             for row in ws.iter_rows(min_row=2, min_col=col, max_col=col):
                 for c in row:
                     c.number_format = 'DD/MM/YYYY'
+        if tipo == 'mediaciones':
+            dv1 = DataValidation(type='list', formula1='"Sí,No,Pendiente"', allow_blank=True)
+            dv2 = DataValidation(type='list', formula1='"En trámite,Cerrada con acuerdo,Cerrada sin acuerdo"', allow_blank=True)
+            ws.add_data_validation(dv1); ws.add_data_validation(dv2)
+            dv1.add('D2:D500'); dv2.add('E2:E500')
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
     return send_file(buf, as_attachment=True, download_name='Seguimiento de procesos - LUBRE S.R.L.xlsx',
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+@app.route('/api/procesos/exportar-pdf', methods=['GET'])
+@login_required
+def api_procesos_pdf():
+    data = load_data()
+    p = get_procesos(data)
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=1.2*cm, rightMargin=1.2*cm, topMargin=1.2*cm, bottomMargin=1.2*cm)
+    ss = getSampleStyleSheet()
+    cel = ParagraphStyle('cel', parent=ss['Normal'], fontSize=8, leading=10)
+    cab = ParagraphStyle('cab', parent=ss['Normal'], fontSize=8, leading=10, textColor=colors.white, fontName='Helvetica-Bold')
+    esc = lambda t: str(t or '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    el = [Paragraph('Seguimiento de procesos judiciales — LUBRE S.R.L.', ss['Title']),
+          Paragraph('Emitido el ' + datetime.now().strftime('%d/%m/%Y'), ss['Normal']), Spacer(1, 0.4*cm)]
+    anchos = {
+        'mediaciones': [2.2, 9, 2.6, 3, 3.6, 6],
+        'ejecutivos': [2.4, 10, 5, 9],
+        'extrajudiciales': [10, 6, 10],
+    }
+    for nombre, tipo, heads, keys in HOJAS_PROC:
+        el.append(Paragraph(nombre, ss['Heading2']))
+        filas = [[Paragraph(esc(h), cab) for h in heads]]
+        for r in p.get(tipo, []):
+            filas.append([Paragraph(esc(_fmt_fecha(r.get(k)) if k == 'fecha_mediacion' else r.get(k)), cel) for k in keys])
+        if len(filas) == 1:
+            filas.append([Paragraph('Sin registros', cel)] + [''] * (len(heads) - 1))
+        t = Table(filas, colWidths=[w*cm for w in anchos[tipo]], repeatRows=1)
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a2e4a')),
+            ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#cbd5e1')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f5f9')]),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        el += [t, Spacer(1, 0.5*cm)]
+    doc.build(el)
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name='Seguimiento de procesos - LUBRE S.R.L.pdf', mimetype='application/pdf')
+
+def _norm_notif(v):
+    t = ' '.join(_tokens(v))
+    if t in ('SI', 'S'): return 'Sí'
+    if t in ('NO', 'AUN NO', 'TODAVIA NO'): return 'No'
+    if t in ('PENDIENTE', 'POR NOTIFICAR'): return 'Pendiente'
+    return ''
+
+def _norm_cierre(v):
+    t = ' '.join(_tokens(v))
+    if 'SIN' in t and 'ACUERDO' in t: return 'Cerrada sin acuerdo'
+    if 'CON' in t and 'ACUERDO' in t: return 'Cerrada con acuerdo'
+    if 'TRAMITE' in t: return 'En trámite'
+    return ''
+
+@app.route('/api/procesos/importar', methods=['POST'])
+@admin_required
+def api_procesos_import():
+    import openpyxl
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'No se recibió ningún archivo'}), 400
+    try:
+        wb = openpyxl.load_workbook(f, data_only=True)
+    except Exception:
+        return jsonify({'error': 'No se pudo leer el Excel (debe ser .xlsx)'}), 400
+    data = load_data()
+    p = get_procesos(data)
+    resumen = {'agregados': 0, 'repetidos': 0, 'hojas': []}
+    for ws in wb.worksheets:
+        n = ' '.join(_tokens(ws.title))
+        tipo = 'mediaciones' if 'MEDIAC' in n else 'ejecutivos' if 'EJECUT' in n else 'extrajudiciales' if 'EXTRAJ' in n else None
+        if not tipo:
+            continue
+        resumen['hojas'].append(ws.title)
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            continue
+        heads = [' '.join(_tokens(h)) for h in rows[0]]
+        def col(*claves):
+            for i, h in enumerate(heads):
+                if any(c in h for c in claves):
+                    return i
+            return None
+        idx = {'expte': col('EXPTE'), 'caratula': col('CARATULA'), 'caso': col('CASO'),
+               'fecha_mediacion': col('FECHA'), 'notificado': col('NOTIFICADO'),
+               'cierre': col('CIERRE'), 'estado': col('ESTADO'), 'observaciones': col('OBSERV')}
+        for fila in rows[1:]:
+            def val(k):
+                i = idx.get(k)
+                v = fila[i] if i is not None and i < len(fila) else None
+                return v
+            reg = {}
+            for k in PROCESOS_CAMPOS[tipo]:
+                if k == 'cliente_id':
+                    reg[k] = ''
+                    continue
+                v = val(k)
+                if k == 'fecha_mediacion':
+                    v = v.strftime('%Y-%m-%d') if hasattr(v, 'strftime') else (str(v).strip() if v else '')
+                    if v and not _re.match(r'^\d{4}-\d{2}-\d{2}$', v):
+                        m = _re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', v)
+                        v = f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}" if m else ''
+                elif k == 'notificado':
+                    v = _norm_notif(v)
+                elif k == 'cierre':
+                    v = _norm_cierre(v)
+                else:
+                    v = str(v).strip() if v is not None else ''
+                reg[k] = v
+            ident = reg.get('expte') or reg.get('caso')
+            if not ident and not reg.get('caratula'):
+                continue
+            dup = any(((x.get('expte') or x.get('caso')) == ident and (x.get('caratula') or '') == (reg.get('caratula') or '')) for x in p[tipo])
+            if dup:
+                resumen['repetidos'] += 1
+                continue
+            reg['id'] = p['next_id']
+            p['next_id'] += 1
+            p[tipo].append(reg)
+            sync_proceso(data, tipo, reg)
+            resumen['agregados'] += 1
+    save_data(data)
+    log_actividad('Procesos importados', detalle=f"{resumen['agregados']} agregados desde Excel")
+    return jsonify(resumen)
 
 @app.route('/api/resumen', methods=['GET'])
 @login_required
