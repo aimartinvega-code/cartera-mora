@@ -627,6 +627,141 @@ def delete_pago(cid, pid):
     save_data(data)
     return jsonify({'ok': True})
 
+
+# ================= PROCESOS JUDICIALES =================
+PROCESOS_CAMPOS = {
+    'mediaciones': ['expte', 'caratula', 'fecha_mediacion', 'notificado', 'cierre', 'observaciones'],
+    'ejecutivos': ['expte', 'caratula', 'estado', 'observaciones'],
+    'extrajudiciales': ['caso', 'estado', 'observaciones'],
+}
+
+def procesos_iniciales():
+    M = 'LUBRE SRL c/ %s s/ COBRO ORDINARIO'
+    return {
+        'next_id': 100,
+        'mediaciones': [
+            {'id': 1, 'expte': '4233/25', 'caratula': M % 'GARCÍA ARIEL ANTONIO', 'fecha_mediacion': '', 'notificado': '', 'cierre': '', 'observaciones': ''},
+            {'id': 2, 'expte': '8216/26', 'caratula': M % 'INDUSTRIAS SANTA BÁRBARA S.R.L.', 'fecha_mediacion': '2026-11-11', 'notificado': 'Sí', 'cierre': 'Cerrada sin acuerdo', 'observaciones': 'Para presentar demanda'},
+            {'id': 3, 'expte': '9204/26', 'caratula': M % 'HIDRÁULICA LOS AGUIRRE SRL', 'fecha_mediacion': '2026-11-25', 'notificado': 'Sí', 'cierre': '', 'observaciones': ''},
+            {'id': 4, 'expte': '9334/26', 'caratula': M % 'SAAVEDRA NATALIA DEL VALLE', 'fecha_mediacion': '2026-11-25', 'notificado': 'No', 'cierre': '', 'observaciones': ''},
+            {'id': 5, 'expte': '10204/26', 'caratula': M % 'RÍO PIZAVIL S.R.L.', 'fecha_mediacion': '2026-12-09', 'notificado': 'Pendiente', 'cierre': '', 'observaciones': ''},
+            {'id': 6, 'expte': '10232/26', 'caratula': M % 'DON TEODORO SRL', 'fecha_mediacion': '', 'notificado': '', 'cierre': '', 'observaciones': ''},
+            {'id': 7, 'expte': '10392/26', 'caratula': M % 'ROYAL LOGISTIC SRL', 'fecha_mediacion': '', 'notificado': '', 'cierre': '', 'observaciones': ''},
+        ],
+        'ejecutivos': [
+            {'id': 8, 'expte': '10609/26', 'caratula': 'LUBRE SRL c/ GUILLÉN JOSÉ FRANCISCO s/ COBRO EJECUTIVO', 'estado': '', 'observaciones': 'para sentencia monitoria'},
+            {'id': 9, 'expte': '10666/26', 'caratula': 'LUBRE SRL c/ GUILLÉN EDUARDO s/ COBRO EJECUTIVO', 'estado': '', 'observaciones': 'para sentencia monitoria'},
+        ],
+        'extrajudiciales': [
+            {'id': 10, 'caso': 'LUBRE SRL c/ MONTEROS LEMON SAS', 'estado': 'Para convenio', 'observaciones': ''},
+            {'id': 11, 'caso': 'LUBRE SRL c/ NOBEN SRL', 'estado': 'Para convenio', 'observaciones': ''},
+        ],
+    }
+
+def get_procesos(data):
+    if 'procesos' not in data:
+        data['procesos'] = procesos_iniciales()
+        save_data(data)
+    return data['procesos']
+
+@app.route('/api/procesos', methods=['GET'])
+@login_required
+def api_procesos():
+    data = load_data()
+    p = get_procesos(data)
+    return jsonify({k: p.get(k, []) for k in PROCESOS_CAMPOS})
+
+@app.route('/api/procesos/<tipo>', methods=['POST'])
+@admin_required
+def api_procesos_add(tipo):
+    if tipo not in PROCESOS_CAMPOS:
+        return jsonify({'error': 'Tipo inválido'}), 400
+    data = load_data()
+    p = get_procesos(data)
+    nuevo = {'id': p['next_id']}
+    p['next_id'] += 1
+    body = request.get_json(silent=True) or {}
+    for c in PROCESOS_CAMPOS[tipo]:
+        nuevo[c] = str(body.get(c, '') or '')
+    p[tipo].append(nuevo)
+    save_data(data)
+    log_actividad('Proceso agregado', detalle=tipo)
+    return jsonify(nuevo)
+
+@app.route('/api/procesos/<tipo>/<int:pid>', methods=['PUT'])
+@admin_required
+def api_procesos_edit(tipo, pid):
+    if tipo not in PROCESOS_CAMPOS:
+        return jsonify({'error': 'Tipo inválido'}), 400
+    data = load_data()
+    p = get_procesos(data)
+    body = request.get_json(silent=True) or {}
+    for r in p[tipo]:
+        if r['id'] == pid:
+            for c in PROCESOS_CAMPOS[tipo]:
+                if c in body:
+                    r[c] = str(body[c] or '')
+            save_data(data)
+            return jsonify({'ok': True})
+    return jsonify({'error': 'No encontrado'}), 404
+
+@app.route('/api/procesos/<tipo>/<int:pid>', methods=['DELETE'])
+@admin_required
+def api_procesos_del(tipo, pid):
+    if tipo not in PROCESOS_CAMPOS:
+        return jsonify({'error': 'Tipo inválido'}), 400
+    data = load_data()
+    p = get_procesos(data)
+    p[tipo] = [r for r in p[tipo] if r['id'] != pid]
+    save_data(data)
+    log_actividad('Proceso eliminado', detalle=tipo)
+    return jsonify({'ok': True})
+
+@app.route('/api/procesos/exportar', methods=['GET'])
+@login_required
+def api_procesos_export():
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    data = load_data()
+    p = get_procesos(data)
+    hojas = [
+        ('Mediaciones', 'mediaciones', ['Expte. N°', 'Carátula', 'Fecha de mediación', '¿Debidamente notificado?', 'Cierre', 'Observaciones'], ['expte', 'caratula', 'fecha_mediacion', 'notificado', 'cierre', 'observaciones']),
+        ('Ejecutivos (cheques)', 'ejecutivos', ['Expte. N°', 'Carátula', 'Estado del juicio', 'Observaciones'], ['expte', 'caratula', 'estado', 'observaciones']),
+        ('Extrajudiciales', 'extrajudiciales', ['Caso', 'Estado del convenio', 'Observaciones'], ['caso', 'estado', 'observaciones']),
+    ]
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+    for nombre, tipo, heads, keys in hojas:
+        ws = wb.create_sheet(nombre)
+        ws.append(heads)
+        for c in ws[1]:
+            c.font = Font(bold=True, color='FFFFFF')
+            c.fill = PatternFill('solid', fgColor='1A2E4A')
+            c.alignment = Alignment(wrap_text=True, vertical='center')
+        for r in p.get(tipo, []):
+            fila = []
+            for k in keys:
+                v = r.get(k, '')
+                if k == 'fecha_mediacion' and v:
+                    try:
+                        v = datetime.strptime(v, '%Y-%m-%d')
+                    except Exception:
+                        pass
+                fila.append(v)
+            ws.append(fila)
+        for i, k in enumerate(keys, 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = 60 if k in ('caratula', 'caso') else (22 if k != 'observaciones' else 40)
+        if 'fecha_mediacion' in keys:
+            col = keys.index('fecha_mediacion') + 1
+            for row in ws.iter_rows(min_row=2, min_col=col, max_col=col):
+                for c in row:
+                    c.number_format = 'DD/MM/YYYY'
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name='Seguimiento de procesos - LUBRE S.R.L.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
 @app.route('/api/resumen', methods=['GET'])
 @login_required
 def get_resumen():

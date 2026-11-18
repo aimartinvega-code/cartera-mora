@@ -569,6 +569,17 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
 
 /* IMPORT EXPORT GROUP */
 .import-export-group { display: flex; gap: 0.5rem; }
+
+.proc-sub { padding:0.45rem 0.9rem; border:1.5px solid var(--border); background:var(--surface); border-radius:8px; font-weight:600; font-size:0.8rem; color:var(--slate); cursor:pointer; }
+.proc-sub.active { background:var(--navy); color:#fff; border-color:var(--navy); }
+#proc-table input, #proc-table select, #proc-table textarea { width:100%; border:1px solid transparent; background:transparent; padding:0.35rem 0.4rem; font:inherit; border-radius:5px; color:var(--text); }
+#proc-table input:hover, #proc-table select:hover, #proc-table textarea:hover { border-color:var(--border); }
+#proc-table input:focus, #proc-table select:focus, #proc-table textarea:focus { border-color:var(--navy); background:#fff; outline:none; }
+#proc-table textarea { resize:vertical; min-height:2.1rem; }
+#proc-table td { padding:0.25rem 0.4rem; vertical-align:top; }
+#proc-table th { padding:0.6rem 0.6rem; text-align:left; font-size:0.75rem; }
+#proc-table tr.proc-prox { background:#fef9c3; }
+#proc-table tr.proc-cerrada { background:#f1f5f9; }
 </style>
 </head>
 <body>
@@ -601,6 +612,7 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
   <div class="tab active" onclick="showPanel('clientes', this)">📋 Clientes</div>
   <div class="tab" onclick="showPanel('dashboard', this); loadDashboard(); loadGraficos()">📊 Resumen</div>
   <div class="tab" onclick="showPanel('cheques', this); loadCheques()">🧾 Cheques</div>
+  <div class="tab" onclick="showPanel('procesos', this); loadProcesos()">⚖️ Procesos</div>
 </div>
 
 <div class="main">
@@ -709,6 +721,28 @@ tbody tr.incobrable-row:hover { background: #ffe4e6 !important; }
     <div>
       <div style="font-size:0.8rem;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.6rem">🔴 Rechazados</div>
       <div id="cheques-rechazados-list"></div>
+    </div>
+  </div>
+
+  <!-- PANEL PROCESOS -->
+  <div class="panel" id="panel-procesos">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.6rem">
+      <div>
+        <div style="font-size:1rem;font-weight:700;color:var(--navy)">⚖️ Procesos judiciales en trámite</div>
+        <div style="font-size:0.78rem;color:var(--slate)">Seguimiento de mediaciones, juicios ejecutivos y gestiones extrajudiciales. Los cambios se guardan solos.</div>
+      </div>
+      <div style="display:flex;gap:0.5rem">
+        <button class="btn-add" id="proc-btn-add" type="button">+ Agregar fila</button>
+        <a class="btn-add" href="/api/procesos/exportar" style="text-decoration:none;background:var(--green)">⬇ Exportar Excel</a>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.4rem;margin-bottom:0.8rem" id="proc-subtabs">
+      <button type="button" class="proc-sub active" data-tipo="mediaciones">Mediaciones</button>
+      <button type="button" class="proc-sub" data-tipo="ejecutivos">Ejecutivos (cheques)</button>
+      <button type="button" class="proc-sub" data-tipo="extrajudiciales">Extrajudiciales</button>
+    </div>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table id="proc-table"><thead id="proc-head"></thead><tbody id="proc-body"></tbody></table>
     </div>
   </div>
 
@@ -1726,6 +1760,118 @@ async function guardarNuevo() {
   });
   await cargarClientes();
   toast('Cliente agregado ✓', 'success');
+}
+
+
+// ---- PROCESOS JUDICIALES ----
+var PROC_DEF = {
+  mediaciones: {
+    cols: [['expte','Expte. N°','text','110px'],['caratula','Carátula','textarea','340px'],['fecha_mediacion','Fecha de mediación','date','140px'],['notificado','¿Debidamente notificado?','sel:Sí|No|Pendiente','160px'],['cierre','Cierre','sel:En trámite|Cerrada con acuerdo|Cerrada sin acuerdo','180px'],['observaciones','Observaciones','textarea','260px']]
+  },
+  ejecutivos: {
+    cols: [['expte','Expte. N°','text','110px'],['caratula','Carátula','textarea','340px'],['estado','Estado del juicio','text','200px'],['observaciones','Observaciones','textarea','300px']]
+  },
+  extrajudiciales: {
+    cols: [['caso','Caso','textarea','340px'],['estado','Estado del convenio','text','200px'],['observaciones','Observaciones','textarea','300px']]
+  }
+};
+var procData = {mediaciones:[], ejecutivos:[], extrajudiciales:[]};
+var procTipo = 'mediaciones';
+var procInit = false;
+
+function procEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function loadProcesos() {
+  if (!procInit) { procInit = true; procBind(); }
+  try {
+    var res = await fetch('/api/procesos');
+    procData = await res.json();
+  } catch (e) { toast('No se pudieron cargar los procesos', 'error'); }
+  renderProcesos();
+}
+
+function renderProcesos() {
+  var def = PROC_DEF[procTipo];
+  var head = '<tr>';
+  def.cols.forEach(function(c) { head += '<th style="min-width:' + c[3] + '">' + c[1] + '</th>'; });
+  head += '<th style="width:40px"></th></tr>';
+  document.getElementById('proc-head').innerHTML = head;
+  var hoy = new Date(); hoy.setHours(0,0,0,0);
+  var html = '';
+  (procData[procTipo] || []).forEach(function(r) {
+    var cls = '';
+    if (procTipo === 'mediaciones') {
+      if (r.cierre && r.cierre.indexOf('Cerrada') === 0) cls = 'proc-cerrada';
+      else if (r.fecha_mediacion) {
+        var d = new Date(r.fecha_mediacion + 'T00:00:00');
+        var dif = Math.round((d - hoy) / 86400000);
+        if (dif >= 0 && dif <= 7) cls = 'proc-prox';
+      }
+    }
+    html += '<tr class="' + cls + '" data-id="' + r.id + '">';
+    def.cols.forEach(function(c) {
+      var k = c[0], t = c[2], v = r[k] || '';
+      html += '<td>';
+      if (t === 'textarea') {
+        html += '<textarea rows="2" data-k="' + k + '">' + procEsc(v) + '</textarea>';
+      } else if (t === 'date') {
+        html += '<input type="date" data-k="' + k + '" value="' + procEsc(v) + '">';
+      } else if (t.indexOf('sel:') === 0) {
+        html += '<select data-k="' + k + '"><option value=""></option>';
+        t.slice(4).split('|').forEach(function(o) {
+          html += '<option value="' + o + '"' + (o === v ? ' selected' : '') + '>' + o + '</option>';
+        });
+        html += '</select>';
+      } else {
+        html += '<input type="text" data-k="' + k + '" value="' + procEsc(v) + '">';
+      }
+      html += '</td>';
+    });
+    html += '<td><button type="button" class="btn-icon proc-del" title="Eliminar">🗑</button></td></tr>';
+  });
+  if (!html) html = '<tr><td colspan="' + (def.cols.length + 1) + '" style="text-align:center;color:var(--muted);padding:1.5rem">Sin registros. Usá "+ Agregar fila".</td></tr>';
+  document.getElementById('proc-body').innerHTML = html;
+}
+
+function procBind() {
+  document.getElementById('proc-subtabs').addEventListener('click', function(e) {
+    var b = e.target.closest('.proc-sub');
+    if (!b) return;
+    procTipo = b.getAttribute('data-tipo');
+    document.querySelectorAll('.proc-sub').forEach(function(x) { x.classList.remove('active'); });
+    b.classList.add('active');
+    renderProcesos();
+  });
+  document.getElementById('proc-btn-add').addEventListener('click', async function() {
+    var res = await fetch('/api/procesos/' + procTipo, {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+    if (!res.ok) { toast('No se pudo agregar', 'error'); return; }
+    var nuevo = await res.json();
+    procData[procTipo].push(nuevo);
+    renderProcesos();
+  });
+  document.getElementById('proc-body').addEventListener('change', async function(e) {
+    var el = e.target, tr = el.closest('tr');
+    if (!tr || !el.getAttribute('data-k')) return;
+    var id = parseInt(tr.getAttribute('data-id'), 10), k = el.getAttribute('data-k');
+    var body = {}; body[k] = el.value;
+    var res = await fetch('/api/procesos/' + procTipo + '/' + id, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    if (!res.ok) { toast('No se pudo guardar', 'error'); return; }
+    procData[procTipo].forEach(function(r) { if (r.id === id) r[k] = el.value; });
+    if (k === 'fecha_mediacion' || k === 'cierre') renderProcesos();
+    toast('Guardado ✓', 'success');
+  });
+  document.getElementById('proc-body').addEventListener('click', async function(e) {
+    var b = e.target.closest('.proc-del');
+    if (!b) return;
+    if (!confirm('¿Eliminar esta fila?')) return;
+    var id = parseInt(b.closest('tr').getAttribute('data-id'), 10);
+    var res = await fetch('/api/procesos/' + procTipo + '/' + id, {method:'DELETE'});
+    if (!res.ok) { toast('No se pudo eliminar', 'error'); return; }
+    procData[procTipo] = procData[procTipo].filter(function(r) { return r.id !== id; });
+    renderProcesos();
+  });
 }
 
 // ---- TABS ----
