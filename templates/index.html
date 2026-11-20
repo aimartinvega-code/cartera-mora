@@ -1909,7 +1909,7 @@ function procBind() {
     var r = await res.json();
     e.target.value = '';
     if (!res.ok) { toast(r.error || 'No se pudo importar', 'error'); return; }
-    toast('Importados: ' + r.agregados + ' · ya existían: ' + r.repetidos, 'success');
+    toast('Nuevos: ' + r.agregados + ' · actualizados: ' + r.actualizados + ' · sin cambios: ' + r.repetidos, 'success');
     if (typeof cargarClientes === 'function') { try { cargarClientes(); } catch (er) {} }
     loadProcesos();
   });

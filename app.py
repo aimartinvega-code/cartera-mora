@@ -687,6 +687,9 @@ def get_procesos(data):
             for tipo, r in vinc:
                 _quitar_obs(c, r)
                 r.pop('_obs_cid', None)
+            # además de la línea registrada, limpiar líneas "⚖️ Mediación 123/26: ..." de la versión anterior
+            c['observaciones'] = '\n'.join(l for l in (c.get('observaciones') or '').split('\n')
+                                           if not _re.match(r'^\s*⚖️ (Mediación|Ejecutivo|Extrajudicial)\b', l))
             partes = []
             for t in [(c.get('observaciones') or '')] + [(r.get('observaciones') or '') for _, r in vinc]:
                 t = t.strip()
@@ -1033,7 +1036,7 @@ def api_procesos_import():
         return jsonify({'error': 'No se pudo leer el Excel (debe ser .xlsx)'}), 400
     data = load_data()
     p = get_procesos(data)
-    resumen = {'agregados': 0, 'repetidos': 0, 'hojas': []}
+    resumen = {'agregados': 0, 'actualizados': 0, 'repetidos': 0, 'hojas': []}
     for ws in wb.worksheets:
         n = ' '.join(_tokens(ws.title))
         tipo = 'mediaciones' if 'MEDIAC' in n else 'ejecutivos' if 'EJECUT' in n else 'extrajudiciales' if 'EXTRAJ' in n else None
@@ -1078,9 +1081,28 @@ def api_procesos_import():
             ident = reg.get('expte') or reg.get('caso')
             if not ident and not reg.get('caratula'):
                 continue
-            dup = any(((x.get('expte') or x.get('caso')) == ident and (x.get('caratula') or '') == (reg.get('caratula') or '')) for x in p[tipo])
-            if dup:
-                resumen['repetidos'] += 1
+            existente = None
+            for x in p[tipo]:
+                if ident and (x.get('expte') or x.get('caso')) == ident:
+                    existente = x
+                    break
+                if not ident and (x.get('caratula') or '') == (reg.get('caratula') or ''):
+                    existente = x
+                    break
+            if existente is not None:
+                cambios = {}
+                for k in PROCESOS_CAMPOS[tipo]:
+                    if k == 'cliente_id':
+                        continue
+                    nuevo = reg.get(k, '')
+                    if nuevo and nuevo != (existente.get(k) or ''):
+                        cambios[k] = nuevo
+                if cambios:
+                    existente.update(cambios)
+                    sync_proceso(data, tipo, existente, 'obs' if 'observaciones' in cambios else '')
+                    resumen['actualizados'] += 1
+                else:
+                    resumen['repetidos'] += 1
                 continue
             reg['id'] = p['next_id']
             p['next_id'] += 1
@@ -1088,7 +1110,7 @@ def api_procesos_import():
             sync_proceso(data, tipo, reg)
             resumen['agregados'] += 1
     save_data(data)
-    log_actividad('Procesos importados', detalle=f"{resumen['agregados']} agregados desde Excel")
+    log_actividad('Procesos importados', detalle=f"{resumen['agregados']} agregados, {resumen['actualizados']} actualizados desde Excel")
     return jsonify(resumen)
 
 @app.route('/api/resumen', methods=['GET'])
